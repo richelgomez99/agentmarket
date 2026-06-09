@@ -1,15 +1,17 @@
 "use client";
 // From the design handoff (specs/001-agentmarket/design) — presentational only.
-import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink } from "lucide-react";
+import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink, Download } from "lucide-react";
 import type { Payment } from "@/lib/types";
 import { PanelShell, truncHash } from "./shared";
 
 export default function PaymentPanel({
   payment,
   awaitingAccept, // optional flourish: HTTP 402 received, reviewing work
+  onDownload, // paid? the deliverable is yours — download the built page
 }: {
   payment?: Payment;
   awaitingAccept?: boolean;
+  onDownload?: () => void;
 }) {
   const pathLabel =
     payment?.path === "x402" ? "x402 · HTTP-402 micropayment" : payment?.path === "usdc-transfer" ? "Direct USDC transfer" : "Native MON transfer";
@@ -77,6 +79,14 @@ export default function PaymentPanel({
                 VIEW TX <ExternalLink size={11} />
               </span>
             </a>
+            {payment.status === "settled" && onDownload ? (
+              <button
+                onClick={onDownload}
+                className="mt-2.5 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg bg-emerald-400/15 px-3 py-2 font-display text-[12.5px] font-bold text-emerald-300 transition hover:bg-emerald-400/25"
+              >
+                <Download size={14} /> DOWNLOAD DELIVERABLE
+              </button>
+            ) : null}
           </div>
         )}
       </div>

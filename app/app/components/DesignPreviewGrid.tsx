@@ -59,7 +59,7 @@ function ScaledFrame({
             srcDoc={html}
             title={title}
             className={"animate-fade-in border-0 bg-white " + (pan ? "inspect-pan" : "")}
-            style={{ width: designW, height: pan ? innerH * 2.2 : innerH, pointerEvents: "none" }}
+            style={{ width: designW, height: pan ? Math.round(innerH * 1.5) : innerH, pointerEvents: "none" }}
           />
         </div>
       ) : null}

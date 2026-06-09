@@ -100,6 +100,17 @@ export default function Home() {
   const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const [inspect, setInspect] = useState<InspectState | undefined>();
+  const deliverableRef = useRef<string>("");
+
+  const downloadDeliverable = useCallback(() => {
+    if (!deliverableRef.current) return;
+    const blob = new Blob([deliverableRef.current], { type: "text/html" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "agentmarket-deliverable.html";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }, []);
   const runId = useRef(0);
 
   // comms helpers — agent voices come from PERSONAS, accents from the style config
@@ -243,51 +254,75 @@ export default function Home() {
 
   // T3: review -> revision round (operator-authorized) -> approval -> pay on-chain (x402-first)
   const runPayment = useCallback(
-    async (payoutAddress: string, agentName: string, agentStyle: Style, briefText: string, firstHtml: string, id: number) => {
+    async (payoutAddress: string, agentName: string, agentStyle: Style, agentId: string, briefText: string, firstHtml: string, id: number) => {
+      // included revisions vary per job (1 or 2) — beyond that, edits are paid via x402
+      const included = 1 + ((parseInt(agentId, 10) + briefText.length) % 2);
+      let html = firstHtml;
       try {
-        // ── round 1: the orchestrator reviews and requests a concrete revision ──
-        await runInspection(agentStyle, id);
-        if (id !== runId.current) return;
-        setPhase("awaiting");
-        const r1 = await consumeOrchestrate<{ approved: boolean; revisionNote?: string }>(
-          await postOrchestrate({ stage: "review", brief: briefText, html: firstHtml, round: 1 })
-        );
-        if (id !== runId.current) return;
-        say("orchestrator", "Orchestrator", r1.text);
-        await new Promise((r) => setTimeout(r, 1800));
-        if (id !== runId.current) return;
-
-        let html = firstHtml;
-        if (!r1.result.approved && r1.result.revisionNote) {
-          // ── the agent quotes its operator-authorized terms and revises ──
-          say(
-            "agent",
-            agentName,
-            `On it. My operator authorized 2 included revisions for this job — this one's covered. (Edits beyond that are $0.01 each via x402.) Revising now…`,
-            agentStyle
-          );
-          await new Promise((r) => setTimeout(r, 1400));
-          if (id !== runId.current) return;
-          html = await runBuild(agentStyle, briefText, id, r1.result.revisionNote);
-          if (id !== runId.current) return;
+        let revisionsUsed = 0;
+        for (let round = 1; round <= 3; round++) {
           await runInspection(agentStyle, id);
           if (id !== runId.current) return;
-          // ── round 2: revised delivery — acceptance review ──
           setPhase("awaiting");
-          const r2 = await consumeOrchestrate<{ approved: boolean }>(
-            await postOrchestrate({ stage: "review", brief: briefText, html, round: 2 })
+          const r = await consumeOrchestrate<{ approved: boolean; revisionNote?: string }>(
+            await postOrchestrate({ stage: "review", brief: briefText, html, round })
           );
           if (id !== runId.current) return;
-          say("orchestrator", "Orchestrator", r2.text);
-          await new Promise((r) => setTimeout(r, 1600));
+          say("orchestrator", "Orchestrator", r.text);
+          await new Promise((res) => setTimeout(res, 1800));
+          if (id !== runId.current) return;
+          if (r.result.approved || !r.result.revisionNote || round >= 3) break;
+
+          revisionsUsed++;
+          if (revisionsUsed > included) {
+            // ── beyond the operator-authorized set: a REAL extra fee settles first ──
+            say(
+              "agent",
+              agentName,
+              `That's beyond my ${included} included revision${included > 1 ? "s" : ""} — additional edits are $0.01 each via x402. My operator pre-approved up to 3 total.`,
+              agentStyle
+            );
+            await new Promise((res) => setTimeout(res, 1200));
+            if (id !== runId.current) return;
+            say("orchestrator", "Orchestrator", "Fair terms. Settling the revision fee now — HTTP 402.");
+            try {
+              const feeRes = await fetch("/api/pay", {
+                method: "POST",
+                headers: { "content-type": "application/json" },
+                body: JSON.stringify({ payoutAddress, amountUsd: 0.01 }),
+              });
+              if (feeRes.ok) {
+                const fee: Payment = await feeRes.json();
+                if (id !== runId.current) return;
+                setEvents((prev) => [
+                  { label: `Revision fee · $0.01 USDC → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
+                  ...prev,
+                ]);
+                say("agent", agentName, `Fee received (${fee.path}). Revising now…`, agentStyle);
+              }
+            } catch {
+              /* fee failure: agent revises anyway — goodwill beats a stuck demo */
+            }
+          } else {
+            say(
+              "agent",
+              agentName,
+              `On it — covered: my operator authorized ${included} included revision${included > 1 ? "s" : ""} for this job. Revising now…`,
+              agentStyle
+            );
+          }
+          await new Promise((res) => setTimeout(res, 1200));
+          if (id !== runId.current) return;
+          html = await runBuild(agentStyle, briefText, id, r.result.revisionNote);
           if (id !== runId.current) return;
         }
         say("orchestrator", "Orchestrator", "Terms honored, work accepted. Releasing payment — HTTP 402 flow.");
-        await new Promise((r) => setTimeout(r, 800));
+        await new Promise((res) => setTimeout(res, 800));
       } catch {
-        await new Promise((r) => setTimeout(r, 2000));
+        await new Promise((res) => setTimeout(res, 2000));
       }
       if (id !== runId.current) return;
+      deliverableRef.current = html;
       setPhase("paying");
       setPayment({ path: "x402", txHash: "", explorerUrl: "", status: "pending", amountUsd: 0.01 });
       try {
@@ -322,7 +357,7 @@ export default function Home() {
         const res = await fetch("/api/feedback", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490 }),
+          body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490, deliverableHtml: deliverableRef.current }),
         });
         if (!res.ok) throw new Error("feedback failed");
         const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
@@ -338,7 +373,12 @@ export default function Home() {
           },
           ...prev,
         ]);
-        say("orchestrator", "Orchestrator", `Rated ★4.9 for this job — written to the ERC-8004 registry.`);
+        const dh: string | undefined = (d as { deliverableHash?: string }).deliverableHash;
+        say(
+          "orchestrator",
+          "Orchestrator",
+          `Rated ★4.9 — written to the ERC-8004 registry${dh && !/^0x0+$/.test(dh) ? `, with the deliverable's hash sealed in the record (${dh.slice(0, 10)}…). Provable delivery.` : "."}`
+        );
         say("agent", agent.name, PERSONAS[agent.style].rated(d.reputation.count), agent.style);
       } catch {
         /* rating failure leaves payment proof intact; demo continues */
@@ -427,7 +467,7 @@ export default function Home() {
 
       const finalHtml = await runBuild(winnerStyle, briefText, id);
       if (id !== runId.current) return;
-      await runPayment(winner?.payoutAddress ?? "", winner?.name ?? "Agent", winnerStyle, briefText, finalHtml, id);
+      await runPayment(winner?.payoutAddress ?? "", winner?.name ?? "Agent", winnerStyle, winner?.agentId ?? "0", briefText, finalHtml, id);
       if (id !== runId.current) return;
       if (winner) await runRating(winner, id);
       if (id !== runId.current) return;
@@ -450,7 +490,7 @@ export default function Home() {
       const finalHtml = await runBuild(fallbackStyle, briefText, id);
       if (id !== runId.current) return;
       if (winner) {
-        await runPayment(winner.payoutAddress, winner.name, fallbackStyle, briefText, finalHtml, id);
+        await runPayment(winner.payoutAddress, winner.name, fallbackStyle, winner.agentId, briefText, finalHtml, id);
         if (id !== runId.current) return;
         await runRating(winner, id);
         if (id !== runId.current) return;
@@ -557,7 +597,7 @@ export default function Home() {
         {/* right: the proof rail */}
         <div className="flex flex-col gap-5">
           <div className="-mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">ON-CHAIN PROOF</div>
-          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} />
+          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} onDownload={phase === "done" || payment?.status === "settled" ? downloadDeliverable : undefined} />
           {hiredAgent ? (
             <ReputationPanel agent={hiredAgent} previousScore={rating?.previousScore} txHash={rating?.txHash} explorerUrl={rating?.explorerUrl} />
           ) : null}

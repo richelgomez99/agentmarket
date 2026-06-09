@@ -32,8 +32,8 @@ body {
 /* ── AGENT QA inspection pass ── */
 @keyframes inspect-pan {
   0% { transform: translateY(0); }
-  45% { transform: translateY(-52%); }
-  55% { transform: translateY(-52%); }
+  45% { transform: translateY(-30%); }
+  55% { transform: translateY(-30%); }
   100% { transform: translateY(0); }
 }
 @keyframes inspect-scanline {
