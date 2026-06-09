@@ -1,8 +1,10 @@
 "use client";
-// AgentMarket — main demo screen (T1: live pitch -> evaluate -> hire -> STREAMED build).
-// T1 runs with zero chain dependency: agents/reputation are local stubs (STAGED_REPUTATION)
-// and orchestration is a client-side stub; T2 replaces both with /api/orchestrate (on-chain
-// registry + per-style getSummary). Payment (T3) and reputation write (T4) wire in later.
+// AgentMarket — main demo screen.
+// Full loop: brief -> on-chain discovery -> 4 style pitches -> specialty-matched hire ->
+// STREAMED full build -> review conversation -> x402 payment (fallback surfaced) ->
+// on-chain rating. AGENT COMMS narrates the whole job with per-agent personas, driven by
+// REAL pipeline events (applications, pitches, hire, build milestones from the live code
+// stream, settlement, rating).
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 import BriefInput from "./components/BriefInput";
@@ -14,6 +16,7 @@ import PaymentPanel from "./components/PaymentPanel";
 import ReputationPanel from "./components/ReputationPanel";
 import ExplorerPanel from "./components/ExplorerPanel";
 import { STYLES, styleById } from "@/lib/styles";
+import { PERSONAS } from "@/lib/personas";
 import { UGLY_PAGE } from "@/lib/uglyPage";
 import { guardHtml } from "@/lib/htmlGuard";
 import type { Agent, DesignOutput, ExplorerEvent, Payment, Style } from "@/lib/types";
@@ -21,6 +24,25 @@ import type { Agent, DesignOutput, ExplorerEvent, Payment, Style } from "@/lib/t
 type Phase = "idle" | "pitching" | "evaluating" | "building" | "awaiting" | "paying" | "rating" | "done";
 
 const SENTINEL = "@@RESULT@@";
+
+/** POST an orchestrate stage with one retry (rides out transient server/RPC hiccups). */
+async function postOrchestrate(body: Record<string, unknown>): Promise<Response> {
+  const go = () =>
+    fetch("/api/orchestrate", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  const first = await go().catch(() => null);
+  if (first?.ok) return first;
+  await new Promise((r) => setTimeout(r, 1500));
+  return go();
+}
+
+// client-side style fallback (only used if the orchestrator is unreachable after retry)
+function localStyle(brief: string): Style {
+  const b = brief.toLowerCase();
+  if (/glass|frost|translucent|blur/.test(b)) return "glassmorphism";
+  if (/brutal|raw|stark|loud/.test(b)) return "brutalist";
+  if (/playful|fun|friendly|cute|bright|bouncy|kids/.test(b)) return "playful";
+  return "dark-mode-premium";
+}
 
 /** Consume an orchestrate stream: returns the reasoning text + the sentinel JSON result. */
 async function consumeOrchestrate<T>(res: Response): Promise<{ text: string; result: T }> {
@@ -51,6 +73,14 @@ const PHASE_HEADLINE: Record<Phase, string> = {
   done: "Job complete — paid + rated on-chain",
 };
 
+// build milestones: detected in the REAL streamed code; each fires once per build
+const MILESTONES: { key: "msStyle" | "msNav" | "msHero" | "msFooter"; probe: string }[] = [
+  { key: "msStyle", probe: "<style" },
+  { key: "msNav", probe: "<nav" },
+  { key: "msHero", probe: "<h1" },
+  { key: "msFooter", probe: "<footer" },
+];
+
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("idle");
   const [brief, setBrief] = useState(
@@ -66,11 +96,16 @@ export default function Home() {
   const [payment, setPayment] = useState<Payment | undefined>();
   const [events, setEvents] = useState<ExplorerEvent[]>([]);
   const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
-  const [thread, setThread] = useState<ThreadMsg[]>([]);
+  const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const runId = useRef(0);
 
-  // Idle market rail: real agents + on-chain reputation, read at mount (T2)
+  // comms helpers — agent voices come from PERSONAS, accents from the style config
+  const say = useCallback((who: ThreadMsg["who"], name: string, text: string, style?: Style) => {
+    setComms((prev) => [...prev, { who, name, text, accent: style ? styleById(style).accent : undefined }]);
+  }, []);
+
+  // Idle market rail: real agents + on-chain reputation, read at mount
   useEffect(() => {
     fetch("/api/orchestrate")
       .then((r) => r.json())
@@ -81,6 +116,18 @@ export default function Home() {
   const agents: Agent[] = candidates.map((a) => ({ ...a, hired: a.style === hiredStyle }));
   const hiredAgent = agents.find((a) => a.hired);
 
+  // ?autorun: kick off the full demo automatically (used for the backup recording)
+  const runRef = useRef<() => void>();
+  const autoran = useRef(false);
+  useEffect(() => {
+    if (autoran.current) return;
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("autorun")) {
+      autoran.current = true;
+      const t = setTimeout(() => runRef.current?.(), 2500);
+      return () => clearTimeout(t);
+    }
+  }, []);
+
   // build timer
   useEffect(() => {
     if (phase !== "building") return;
@@ -89,147 +136,171 @@ export default function Home() {
     return () => clearInterval(iv);
   }, [phase]);
 
-  // agents "apply" one by one when the brief is posted
+  // agents "apply" one by one when the brief is posted — each announces itself in comms
   useEffect(() => {
     if (phase !== "pitching") return;
     setAppliedCount(0);
-    const timers = [600, 1300, 2100, 2800].map((ms, i) => setTimeout(() => setAppliedCount(i + 1), ms));
+    const timers = [600, 1400, 2300, 3100].map((ms, i) =>
+      setTimeout(() => {
+        setAppliedCount(i + 1);
+        const s = STYLES[i];
+        if (s) say("agent", s.agentName, PERSONAS[s.id].apply, s.id);
+      }, ms)
+    );
     return () => timers.forEach(clearTimeout);
-  }, [phase]);
+  }, [phase, say]);
 
-  const runBuild = useCallback(async (style: Style, briefText: string, id: number): Promise<string> => {
-    setPhase("building");
-    setOutputs((prev) => [{ style, html: "", status: "loading" }, ...prev.filter((o) => o.style !== style)]);
-    let acc = "";
-    let lastPaint = 0;
-    const paint = (final?: { html: string; status: DesignOutput["status"]; elapsedMs?: number }) =>
-      setOutputs((prev) =>
-        prev.map((o) =>
-          o.style === style
-            ? final
-              ? { style, ...final }
-              : { ...o, html: acc, status: "loading" as const }
-            : o
-        )
-      );
-    const t0 = Date.now();
-    try {
-      const res = await fetch("/api/generate", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ brief: briefText, style, mode: "build" }),
-      });
-      if (!res.ok || !res.body) throw new Error("build failed");
-      const reader = res.body.getReader();
-      const dec = new TextDecoder();
-      for (;;) {
-        const { done, value } = await reader.read();
-        if (id !== runId.current) return ""; // superseded run
-        if (done) break;
-        acc += dec.decode(value, { stream: true });
-        setLiveCode(acc);
-        const now = Date.now();
-        if (now - lastPaint > 400) {
-          lastPaint = now;
-          paint(); // progressive render of partial HTML
-        }
-      }
-      // finalize: sentinel fallback or guarded final doc
-      const sentinel = acc.lastIndexOf("<!--FALLBACK-->");
-      let finalHtml: string;
-      if (sentinel >= 0) {
-        finalHtml = acc.slice(sentinel + "<!--FALLBACK-->".length);
-        paint({ html: finalHtml, status: "fallback", elapsedMs: Date.now() - t0 });
-      } else {
-        const g = guardHtml(acc);
-        finalHtml = g.html ?? styleById(style).fallbackHtml;
-        paint({ html: finalHtml, status: g.html ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
-      }
-      setLiveCode("");
-      return finalHtml;
-    } catch {
-      if (id !== runId.current) return "";
-      const fb = styleById(style).fallbackHtml;
-      paint({ html: fb, status: "fallback", elapsedMs: Date.now() - t0 });
-      setLiveCode("");
-      return fb;
-    }
-  }, []);
-
-  // T3: review conversation -> accept -> pay the hired agent on-chain (x402-first)
-  const runPayment = useCallback(async (payoutAddress: string, agentName: string, briefText: string, finalHtml: string, id: number) => {
-    setPhase("awaiting"); // HTTP 402 — orchestrator reviews the delivered build
-    // the orchestrator's detailed acceptance review (agent-to-agent conversation)
-    try {
-      const rev = await consumeOrchestrate<{ approved: boolean }>(
-        await fetch("/api/orchestrate", {
+  const runBuild = useCallback(
+    async (style: Style, briefText: string, id: number): Promise<string> => {
+      setPhase("building");
+      setOutputs((prev) => [{ style, html: "", status: "loading" }, ...prev.filter((o) => o.style !== style)]);
+      const persona = PERSONAS[style];
+      const agentName = styleById(style).agentName;
+      const fired = new Set<string>();
+      let acc = "";
+      let lastPaint = 0;
+      const paint = (final?: { html: string; status: DesignOutput["status"]; elapsedMs?: number }) =>
+        setOutputs((prev) =>
+          prev.map((o) => (o.style === style ? (final ? { style, ...final } : { ...o, html: acc, status: "loading" as const }) : o))
+        );
+      const t0 = Date.now();
+      try {
+        const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ stage: "review", brief: briefText, html: finalHtml }),
-        })
-      );
+          body: JSON.stringify({ brief: briefText, style, mode: "build" }),
+        });
+        if (!res.ok || !res.body) throw new Error("build failed");
+        const reader = res.body.getReader();
+        const dec = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (id !== runId.current) return ""; // superseded run
+          if (done) break;
+          acc += dec.decode(value, { stream: true });
+          setLiveCode(acc);
+          // narrate REAL milestones as they appear in the stream
+          for (const m of MILESTONES) {
+            if (!fired.has(m.key) && acc.includes(m.probe)) {
+              fired.add(m.key);
+              say("agent", agentName, persona[m.key], style);
+            }
+          }
+          const now = Date.now();
+          if (now - lastPaint > 400) {
+            lastPaint = now;
+            paint(); // progressive render of partial HTML
+          }
+        }
+        const secs = ((Date.now() - t0) / 1000).toFixed(0);
+        const sentinel = acc.lastIndexOf("<!--FALLBACK-->");
+        let finalHtml: string;
+        if (sentinel >= 0) {
+          finalHtml = acc.slice(sentinel + "<!--FALLBACK-->".length);
+          paint({ html: finalHtml, status: "fallback", elapsedMs: Date.now() - t0 });
+        } else {
+          const g = guardHtml(acc);
+          finalHtml = g.html ?? styleById(style).fallbackHtml;
+          paint({ html: finalHtml, status: g.html ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
+        }
+        say("agent", agentName, persona.delivered(secs), style);
+        setLiveCode("");
+        return finalHtml;
+      } catch {
+        if (id !== runId.current) return "";
+        const fb = styleById(style).fallbackHtml;
+        paint({ html: fb, status: "fallback", elapsedMs: Date.now() - t0 });
+        setLiveCode("");
+        return fb;
+      }
+    },
+    [say]
+  );
+
+  // T3: review conversation -> accept -> pay the hired agent on-chain (x402-first)
+  const runPayment = useCallback(
+    async (payoutAddress: string, agentName: string, agentStyle: Style, briefText: string, finalHtml: string, id: number) => {
+      setPhase("awaiting"); // HTTP 402 — orchestrator reviews the delivered build
+      try {
+        const rev = await consumeOrchestrate<{ approved: boolean }>(
+          await postOrchestrate({ stage: "review", brief: briefText, html: finalHtml })
+        );
+        if (id !== runId.current) return;
+        say("orchestrator", "Orchestrator", rev.text);
+        await new Promise((r) => setTimeout(r, 1800));
+        if (id !== runId.current) return;
+        say(
+          "agent",
+          agentName,
+          "Glad it lands. This build includes 3 revisions — further edits are $0.01 each, settled via x402. Send notes any time.",
+          agentStyle
+        );
+        await new Promise((r) => setTimeout(r, 1500));
+        if (id !== runId.current) return;
+        say("orchestrator", "Orchestrator", "Terms accepted. Releasing payment — HTTP 402 flow.");
+        await new Promise((r) => setTimeout(r, 800));
+      } catch {
+        await new Promise((r) => setTimeout(r, 2000));
+      }
       if (id !== runId.current) return;
-      setThread([{ who: "orchestrator", name: "Orchestrator", text: rev.text }]);
-      await new Promise((r) => setTimeout(r, 1800));
-      if (id !== runId.current) return;
-      setThread((t) => [
-        ...t,
-        {
-          who: "agent",
-          name: agentName,
-          text: "Glad it lands. This build includes 3 revisions — further edits are $0.01 each, settled via x402. Send notes any time.",
-        },
-      ]);
-      await new Promise((r) => setTimeout(r, 1600));
-    } catch {
-      await new Promise((r) => setTimeout(r, 2000));
-    }
-    if (id !== runId.current) return;
-    setPhase("paying");
-    setPayment({ path: "x402", txHash: "", explorerUrl: "", status: "pending", amountUsd: 0.01 });
-    try {
-      const res = await fetch("/api/pay", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ payoutAddress, amountUsd: 0.01 }),
-      });
-      if (!res.ok) throw new Error("pay failed");
-      const p: Payment = await res.json();
-      if (id !== runId.current) return;
-      setPayment(p);
-      setEvents((prev) => [
-        { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
-        ...prev,
-      ]);
-    } catch {
-      if (id !== runId.current) return;
-      setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
-    }
-  }, []);
+      setPhase("paying");
+      setPayment({ path: "x402", txHash: "", explorerUrl: "", status: "pending", amountUsd: 0.01 });
+      try {
+        const res = await fetch("/api/pay", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ payoutAddress, amountUsd: 0.01 }),
+        });
+        if (!res.ok) throw new Error("pay failed");
+        const p: Payment = await res.json();
+        if (id !== runId.current) return;
+        setPayment(p);
+        setEvents((prev) => [
+          { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
+          ...prev,
+        ]);
+        say("agent", agentName, PERSONAS[agentStyle].paid(p.path), agentStyle);
+      } catch {
+        if (id !== runId.current) return;
+        setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
+      }
+    },
+    [say]
+  );
 
   // T4: write the rating on-chain (from the CLIENT EOA, never the owner), read it back
-  const runRating = useCallback(async (agent: Agent, id: number) => {
-    setPhase("rating");
-    const previousScore = agent.reputation.score;
-    try {
-      const res = await fetch("/api/feedback", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490 }),
-      });
-      if (!res.ok) throw new Error("feedback failed");
-      const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
-      if (id !== runId.current) return;
-      setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore });
-      setCandidates((prev) => prev.map((a) => (a.agentId === agent.agentId ? { ...a, reputation: d.reputation } : a)));
-      setEvents((prev) => [
-        { label: `Reputation · ${agent.name} ★${d.reputation.score.toFixed(2)} (job #${d.reputation.count})`, txHash: d.txHash, explorerUrl: d.explorerUrl, ts: Date.now() },
-        ...prev,
-      ]);
-    } catch {
-      /* rating failure leaves payment proof intact; demo continues */
-    }
-  }, []);
+  const runRating = useCallback(
+    async (agent: Agent, id: number) => {
+      setPhase("rating");
+      const previousScore = agent.reputation.score;
+      try {
+        const res = await fetch("/api/feedback", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490 }),
+        });
+        if (!res.ok) throw new Error("feedback failed");
+        const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
+        if (id !== runId.current) return;
+        setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore });
+        setCandidates((prev) => prev.map((a) => (a.agentId === agent.agentId ? { ...a, reputation: d.reputation } : a)));
+        setEvents((prev) => [
+          {
+            label: `Reputation · ${agent.name} ★${d.reputation.score.toFixed(2)} (job #${d.reputation.count})`,
+            txHash: d.txHash,
+            explorerUrl: d.explorerUrl,
+            ts: Date.now(),
+          },
+          ...prev,
+        ]);
+        say("orchestrator", "Orchestrator", `Rated ★4.9 for this job — written to the ERC-8004 registry.`);
+        say("agent", agent.name, PERSONAS[agent.style].rated(d.reputation.count), agent.style);
+      } catch {
+        /* rating failure leaves payment proof intact; demo continues */
+      }
+    },
+    [say]
+  );
 
   const run = useCallback(async () => {
     const id = ++runId.current;
@@ -241,19 +312,16 @@ export default function Home() {
     setBuildElapsed(0);
     setReasoning("");
     setPayment(undefined);
-    setRating(undefined); // events intentionally persist — the explorer feed grows across jobs
-    setThread([]);
+    setRating(undefined); // explorer events intentionally persist — the feed grows across jobs
+    setComms([]);
     setPhase("pitching");
     setOutputs(STYLES.map((s) => ({ style: s.id, html: "", status: "loading" as const })));
+    say("orchestrator", "Orchestrator", "Brief posted to the market. Requesting style pitches — samples first; the full job goes to one winner.");
 
     try {
-      // ── T2 stage "open": on-chain discovery + style inference ──
+      // ── stage "open": on-chain discovery + style inference (with retry) ──
       const open = await consumeOrchestrate<{ candidates: Agent[]; inferredStyle: Style }>(
-        await fetch("/api/orchestrate", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ stage: "open", brief: briefText }),
-        })
+        await postOrchestrate({ stage: "open", brief: briefText })
       );
       if (id !== runId.current) return;
       setCandidates(open.result.candidates);
@@ -285,18 +353,17 @@ export default function Home() {
             );
           }
           pitchStatuses.push({ style: s.id, status, elapsedMs });
+          if (id === runId.current)
+            say("agent", s.agentName, status === "fallback" ? PERSONAS[s.id].pitchFallback : PERSONAS[s.id].pitchIn, s.id);
         })
       );
       if (id !== runId.current) return;
 
-      // ── T2 stage "evaluate": pitch fit + per-style on-chain track records ──
+      // ── stage "evaluate": pitch fit + per-style on-chain track records (with retry) ──
       setPhase("evaluating");
+      say("orchestrator", "Orchestrator", "All pitches in. Scoring brand fit and cross-checking on-chain track records…");
       const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string }>(
-        await fetch("/api/orchestrate", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ stage: "evaluate", brief: briefText, inferredStyle: style, pitches: pitchStatuses }),
-        })
+        await postOrchestrate({ stage: "evaluate", brief: briefText, inferredStyle: style, pitches: pitchStatuses })
       );
       if (id !== runId.current) return;
       setReasoning(evald.text);
@@ -306,28 +373,47 @@ export default function Home() {
       await new Promise((r) => setTimeout(r, (evald.text.length / 110) * 1000 + 600));
       if (id !== runId.current) return;
       setHiredStyle(winnerStyle);
+      if (winner) {
+        say("orchestrator", "Orchestrator", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
+        say("agent", winner.name, PERSONAS[winnerStyle].hireAck, winnerStyle);
+      }
       await new Promise((r) => setTimeout(r, 1200));
       if (id !== runId.current) return;
 
       const finalHtml = await runBuild(winnerStyle, briefText, id);
       if (id !== runId.current) return;
-      await runPayment(winner?.payoutAddress ?? "", winner?.name ?? "Agent", briefText, finalHtml, id); // T3
+      await runPayment(winner?.payoutAddress ?? "", winner?.name ?? "Agent", winnerStyle, briefText, finalHtml, id);
       if (id !== runId.current) return;
-      if (winner) await runRating(winner, id); // T4
+      if (winner) await runRating(winner, id);
       if (id !== runId.current) return;
       setPhase("done");
     } catch {
-      // orchestration failed (chain/RPC down): salvage the demo with a local pick
+      // orchestration unreachable after retry: salvage with a local pick, but still run the
+      // FULL pipeline (build -> review thread -> pay -> rate) using the mount-loaded agents
       if (id !== runId.current) return;
-      const fallbackStyle: Style = "dark-mode-premium";
+      const fallbackStyle = localStyle(briefText);
+      const winner = candidates.find((a) => a.style === fallbackStyle);
       setInferredStyle(fallbackStyle);
-      setReasoning("▸ Orchestrator degraded (registry unreachable) — proceeding with local selection.");
+      setReasoning(
+        `▸ Orchestrator degraded (transient) — local selection.\n▸ Hiring the ${fallbackStyle} specialist${winner ? ` (${winner.name})` : ""}; proceeding with the full job.`
+      );
       setHiredStyle(fallbackStyle);
-      await runBuild(fallbackStyle, briefText, id);
+      const finalHtml = await runBuild(fallbackStyle, briefText, id);
       if (id !== runId.current) return;
+      if (winner) {
+        await runPayment(winner.payoutAddress, winner.name, fallbackStyle, briefText, finalHtml, id);
+        if (id !== runId.current) return;
+        await runRating(winner, id);
+        if (id !== runId.current) return;
+      }
       setPhase("done");
     }
-  }, [brief, runBuild, runPayment, runRating]);
+  }, [brief, candidates, runBuild, runPayment, runRating, say]);
+
+  // keep the latest run() reachable from the autorun effect
+  useEffect(() => {
+    runRef.current = run;
+  }, [run]);
 
   const live = phase !== "idle" && phase !== "done";
 
@@ -367,14 +453,14 @@ export default function Home() {
 
       {/* ── dashboard ── */}
       <main className="mx-auto mt-5 grid max-w-[1760px] grid-cols-1 gap-5 px-5 lg:grid-cols-[350px_minmax(0,1fr)_370px] lg:px-8">
-        {/* left: brain + market */}
+        {/* left: brain + comms + market */}
         <div className="flex flex-col gap-5">
           <OrchestratorReasoning
             text={reasoning}
             streaming={phase === "pitching" || phase === "evaluating"}
             selectedAgentName={hiredStyle ? hiredAgent?.name : undefined}
           />
-          <JobThread messages={thread} />
+          <JobThread messages={comms} live={live} />
           <div>
             <div className="mb-2.5 flex items-center justify-between px-1">
               <span className="font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">AGENT MARKET</span>
