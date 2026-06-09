@@ -3,22 +3,25 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* AgentMarket mission-control theme (design handoff) */
+  --background: #0a0b0f;
+  --foreground: #e4e4e7;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  background: #0a0b0f;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-display), system-ui, sans-serif;
 }
+
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0a0b0f; }
+::-webkit-scrollbar-thumb { background: #23262f; border-radius: 6px; border: 2px solid #0a0b0f; }
+::-webkit-scrollbar-thumb:hover { background: #2e323d; }
 
 @layer utilities {
   .text-balance {

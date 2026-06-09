@@ -1,23 +1,24 @@
 import type { Metadata, Viewport } from "next";
-import localFont from "next/font/local";
+import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import PrivyProvider from "./components/privy-provider";
 
-const geistSans = localFont({
-  src: "./fonts/GeistVF.woff",
-  variable: "--font-geist-sans",
-  weight: "100 900",
+const display = Space_Grotesk({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-display",
 });
-const geistMono = localFont({
-  src: "./fonts/GeistMonoVF.woff",
-  variable: "--font-geist-mono",
-  weight: "100 900",
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  weight: ["400", "500", "700"],
+  variable: "--font-mono",
 });
 
-const APP_NAME = "PWA App";
-const APP_DEFAULT_TITLE = "My Awesome PWA App";
-const APP_TITLE_TEMPLATE = "%s - PWA App";
-const APP_DESCRIPTION = "Best PWA app in the world!";
+const APP_NAME = "AgentMarket";
+const APP_DEFAULT_TITLE = "AgentMarket — AI hires AI, on-chain";
+const APP_TITLE_TEMPLATE = "%s - AgentMarket";
+const APP_DESCRIPTION =
+  "A marketplace of specialist AI design agents with on-chain-earned reputation on Monad.";
 
 export const metadata: Metadata = {
   applicationName: APP_NAME,
@@ -72,9 +73,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
+      <body className={`${display.variable} ${mono.variable} antialiased`}>
         <PrivyProvider>{children}</PrivyProvider>
       </body>
     </html>
