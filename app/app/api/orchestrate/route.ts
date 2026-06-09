@@ -80,23 +80,47 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  // ── stage: review — orchestrator critiques the delivered build ───────────
+  // ── stage: review — round 1 requests a concrete revision; round 2 approves ──
   if (stage === "review") {
-    const { html } = body as { html: string };
+    const { html, round } = body as { html: string; round?: number };
+    const finalRound = (round ?? 1) >= 2;
     return streamText(async function* () {
+      if (!finalRound) {
+        let out = "";
+        try {
+          out = await complete(models.pitch, {
+            system: `You are the hiring orchestrator reviewing the FIRST delivery of a landing
+page (HTML below, built for the brief). Write exactly 3 lines, each starting with "▸ ":
+(1) one specific strength (name a real element: type, palette, hero, spacing),
+(2) one concrete, actionable REVISION REQUEST tied to the brand brief (a real visual change —
+spacing, contrast, a section, copy tone — phrased as an instruction),
+(3) "Requesting one revision before acceptance." Then on a new line output ONLY the revision
+instruction again prefixed with "NOTE: ". Be specific. No preamble.`,
+            user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 3500)}`,
+            maxTokens: 180,
+          });
+        } catch {
+          out = `▸ The serif display and palette read premium immediately.\n▸ Give the hero more breathing room and let the gold accent carry the CTA.\n▸ Requesting one revision before acceptance.\nNOTE: Increase hero vertical spacing and make the primary CTA gold-on-dark.`;
+        }
+        const noteMatch = out.match(/NOTE:\s*(.+)/);
+        const revisionNote = noteMatch?.[1]?.trim() || "Tighten hero spacing; strengthen the brand accent on the primary CTA.";
+        yield out.replace(/\nNOTE:[\s\S]*$/, "").trim();
+        yield `\n${SENTINEL}` + JSON.stringify({ approved: false, revisionNote });
+        return;
+      }
       let review = "";
       try {
         review = await complete(models.pitch, {
-          system: `You are the hiring orchestrator reviewing a delivered landing page (HTML below,
-built for the brief). Write a SHORT detailed acceptance review, exactly 3 lines, each starting
-with "▸ ": (1) what specifically works (name a real element: type, palette, hero, spacing),
-(2) one more concrete strength tied to the brand brief, (3) verdict line ending in
-"Accepting and releasing payment." Be specific, not generic. No preamble.`,
-          user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 3500)}`,
+          system: `You are the hiring orchestrator reviewing the REVISED delivery of a landing
+page (HTML below). Write a SHORT acceptance review, exactly 3 lines, each starting with "▸ ":
+(1) confirm the requested revision landed (name it), (2) one more concrete strength tied to
+the brand brief, (3) verdict line ending in "Accepting and releasing payment." Be specific.
+No preamble.`,
+          user: `Brief: ${brief}\n\nRevised HTML (truncated):\n${(html || "").slice(0, 3500)}`,
           maxTokens: 160,
         });
       } catch {
-        review = `▸ Type and palette land the brief precisely — this reads premium.\n▸ The hero hierarchy makes the brand legible in one glance.\n▸ Quality verified. Accepting and releasing payment.`;
+        review = `▸ The revision landed — the hero breathes and the accent carries the eye.\n▸ Type and palette hold the brief precisely; this reads premium.\n▸ Quality verified. Accepting and releasing payment.`;
       }
       yield review.trim();
       yield `\n${SENTINEL}` + JSON.stringify({ approved: true });

@@ -19,12 +19,14 @@ brief. Keep it small and fast — a complete but minimal HTML document.`;
 const BUILD_INSTRUCTION = `You won the job. Produce the FULL landing page for the brief:
 navigation bar, hero, a content/product section (e.g. 3 cards), and a footer. Polished,
 complete, self-contained. This page is judged on visual impact — confident typography,
-considered spacing, atmosphere. Budget your output: lean, efficient CSS (no repetition),
-and ALWAYS finish the complete document ending in </html> — never run out mid-file.`;
+considered spacing, atmosphere. HARD BUDGET: keep the whole document under ~170 lines with
+lean, efficient CSS (no repetition), and ALWAYS finish the complete document ending in
+</html> — never run out mid-file.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { brief, style, mode } = body as { brief: string; style: Style; mode: "pitch" | "build" };
+  const revisionNote = typeof body.revisionNote === "string" ? body.revisionNote.slice(0, 400) : "";
   const simulateFail = !!body.simulateFail && process.env.NODE_ENV !== "production";
 
   const cfg = styleById(style);
@@ -73,9 +75,13 @@ export async function POST(req: NextRequest) {
   const rs = new ReadableStream({
     async start(controller) {
       try {
+        const revisionBlock = revisionNote
+          ? `\n\nREVISION ROUND: you already delivered a first version of this page. Rebuild it
+keeping the same concept and structure, applying these reviewer notes precisely: ${revisionNote}`
+          : "";
         for await (const chunk of stream(models.build, {
           system: cfg.systemPrompt,
-          user: `${BUILD_INSTRUCTION}\n\nBrief: ${brief}`,
+          user: `${BUILD_INSTRUCTION}\n\nBrief: ${brief}${revisionBlock}`,
           maxTokens: 4600,
           signal: ctrl.signal,
         })) {

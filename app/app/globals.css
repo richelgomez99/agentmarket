@@ -28,3 +28,27 @@ body {
     text-wrap: balance;
   }
 }
+
+/* ── AGENT QA inspection pass ── */
+@keyframes inspect-pan {
+  0% { transform: translateY(0); }
+  45% { transform: translateY(-52%); }
+  55% { transform: translateY(-52%); }
+  100% { transform: translateY(0); }
+}
+@keyframes inspect-scanline {
+  0% { top: 0%; opacity: 0; }
+  8% { opacity: 1; }
+  92% { opacity: 1; }
+  100% { top: 96%; opacity: 0; }
+}
+@keyframes inspect-cursor {
+  0% { left: 12%; top: 10%; }
+  22% { left: 70%; top: 9%; }
+  45% { left: 48%; top: 38%; }
+  70% { left: 30%; top: 64%; }
+  100% { left: 55%; top: 82%; }
+}
+.inspect-pan { animation: inspect-pan 6.5s ease-in-out both; }
+.inspect-scanline { animation: inspect-scanline 6.5s ease-in-out both; }
+.inspect-cursor { animation: inspect-cursor 6.5s ease-in-out both; }

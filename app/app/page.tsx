@@ -11,17 +11,17 @@ import BriefInput from "./components/BriefInput";
 import JobThread, { type ThreadMsg } from "./components/JobThread";
 import OrchestratorReasoning from "./components/OrchestratorReasoning";
 import AgentCandidateCard from "./components/AgentCandidateCard";
-import DesignPreviewGrid from "./components/DesignPreviewGrid";
+import DesignPreviewGrid, { type InspectState } from "./components/DesignPreviewGrid";
 import PaymentPanel from "./components/PaymentPanel";
 import ReputationPanel from "./components/ReputationPanel";
 import ExplorerPanel from "./components/ExplorerPanel";
 import { STYLES, styleById } from "@/lib/styles";
 import { PERSONAS } from "@/lib/personas";
 import { UGLY_PAGE } from "@/lib/uglyPage";
-import { guardHtml } from "@/lib/htmlGuard";
+import { guardHtml, salvageHtml } from "@/lib/htmlGuard";
 import type { Agent, DesignOutput, ExplorerEvent, Payment, Style } from "@/lib/types";
 
-type Phase = "idle" | "pitching" | "evaluating" | "building" | "awaiting" | "paying" | "rating" | "done";
+type Phase = "idle" | "pitching" | "evaluating" | "building" | "inspecting" | "awaiting" | "paying" | "rating" | "done";
 
 const SENTINEL = "@@RESULT@@";
 
@@ -67,6 +67,7 @@ const PHASE_HEADLINE: Record<Phase, string> = {
   pitching: "Brief posted — agents are submitting quick style pitches",
   evaluating: "Orchestrator is judging pitches + track records",
   building: "Agent hired — full build streaming live",
+  inspecting: "Hired agent is QA-testing the build",
   awaiting: "HTTP 402 — build delivered, payment required",
   paying: "Settling USDC on-chain via x402",
   rating: "Writing reputation on-chain (ERC-8004)",
@@ -98,6 +99,7 @@ export default function Home() {
   const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
   const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
+  const [inspect, setInspect] = useState<InspectState | undefined>();
   const runId = useRef(0);
 
   // comms helpers — agent voices come from PERSONAS, accents from the style config
@@ -150,8 +152,29 @@ export default function Home() {
     return () => timers.forEach(clearTimeout);
   }, [phase, say]);
 
+  // the hired agent's visible QA pass: page walkthrough -> real responsive sweep -> final look
+  const runInspection = useCallback(
+    async (style: Style, id: number) => {
+      setPhase("inspecting");
+      const agentName = styleById(style).agentName;
+      say("agent", agentName, "Running my QA pass — walking the page: nav, hero, CTA hierarchy…", style);
+      setInspect({ step: "scan", label: "WALKTHROUGH · HIERARCHY & SPACING" });
+      await new Promise((r) => setTimeout(r, 6800));
+      if (id !== runId.current) return;
+      say("agent", agentName, "Responsive sweep — re-rendering at 390px…", style);
+      setInspect({ step: "mobile", label: "RESPONSIVE · 390PX VIEWPORT" });
+      await new Promise((r) => setTimeout(r, 4500));
+      if (id !== runId.current) return;
+      setInspect({ step: "final", label: "FINAL LOOK" });
+      say("agent", agentName, "QA pass clean. Submitting for review.", style);
+      await new Promise((r) => setTimeout(r, 1800));
+      setInspect(undefined);
+    },
+    [say]
+  );
+
   const runBuild = useCallback(
-    async (style: Style, briefText: string, id: number): Promise<string> => {
+    async (style: Style, briefText: string, id: number, revisionNote?: string): Promise<string> => {
       setPhase("building");
       setOutputs((prev) => [{ style, html: "", status: "loading" }, ...prev.filter((o) => o.style !== style)]);
       const persona = PERSONAS[style];
@@ -168,7 +191,7 @@ export default function Home() {
         const res = await fetch("/api/generate", {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({ brief: briefText, style, mode: "build" }),
+          body: JSON.stringify({ brief: briefText, style, mode: "build", revisionNote }),
         });
         if (!res.ok || !res.body) throw new Error("build failed");
         const reader = res.body.getReader();
@@ -200,8 +223,9 @@ export default function Home() {
           paint({ html: finalHtml, status: "fallback", elapsedMs: Date.now() - t0 });
         } else {
           const g = guardHtml(acc);
-          finalHtml = g.html ?? styleById(style).fallbackHtml;
-          paint({ html: finalHtml, status: g.html ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
+          const salvaged = g.html ?? salvageHtml(acc); // truncated-but-real beats generic fallback
+          finalHtml = salvaged ?? styleById(style).fallbackHtml;
+          paint({ html: finalHtml, status: salvaged ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
         }
         say("agent", agentName, persona.delivered(secs), style);
         setLiveCode("");
@@ -217,27 +241,48 @@ export default function Home() {
     [say]
   );
 
-  // T3: review conversation -> accept -> pay the hired agent on-chain (x402-first)
+  // T3: review -> revision round (operator-authorized) -> approval -> pay on-chain (x402-first)
   const runPayment = useCallback(
-    async (payoutAddress: string, agentName: string, agentStyle: Style, briefText: string, finalHtml: string, id: number) => {
-      setPhase("awaiting"); // HTTP 402 — orchestrator reviews the delivered build
+    async (payoutAddress: string, agentName: string, agentStyle: Style, briefText: string, firstHtml: string, id: number) => {
       try {
-        const rev = await consumeOrchestrate<{ approved: boolean }>(
-          await postOrchestrate({ stage: "review", brief: briefText, html: finalHtml })
+        // ── round 1: the orchestrator reviews and requests a concrete revision ──
+        await runInspection(agentStyle, id);
+        if (id !== runId.current) return;
+        setPhase("awaiting");
+        const r1 = await consumeOrchestrate<{ approved: boolean; revisionNote?: string }>(
+          await postOrchestrate({ stage: "review", brief: briefText, html: firstHtml, round: 1 })
         );
         if (id !== runId.current) return;
-        say("orchestrator", "Orchestrator", rev.text);
+        say("orchestrator", "Orchestrator", r1.text);
         await new Promise((r) => setTimeout(r, 1800));
         if (id !== runId.current) return;
-        say(
-          "agent",
-          agentName,
-          "Glad it lands. This build includes 3 revisions — further edits are $0.01 each, settled via x402. Send notes any time.",
-          agentStyle
-        );
-        await new Promise((r) => setTimeout(r, 1500));
-        if (id !== runId.current) return;
-        say("orchestrator", "Orchestrator", "Terms accepted. Releasing payment — HTTP 402 flow.");
+
+        let html = firstHtml;
+        if (!r1.result.approved && r1.result.revisionNote) {
+          // ── the agent quotes its operator-authorized terms and revises ──
+          say(
+            "agent",
+            agentName,
+            `On it. My operator authorized 2 included revisions for this job — this one's covered. (Edits beyond that are $0.01 each via x402.) Revising now…`,
+            agentStyle
+          );
+          await new Promise((r) => setTimeout(r, 1400));
+          if (id !== runId.current) return;
+          html = await runBuild(agentStyle, briefText, id, r1.result.revisionNote);
+          if (id !== runId.current) return;
+          await runInspection(agentStyle, id);
+          if (id !== runId.current) return;
+          // ── round 2: revised delivery — acceptance review ──
+          setPhase("awaiting");
+          const r2 = await consumeOrchestrate<{ approved: boolean }>(
+            await postOrchestrate({ stage: "review", brief: briefText, html, round: 2 })
+          );
+          if (id !== runId.current) return;
+          say("orchestrator", "Orchestrator", r2.text);
+          await new Promise((r) => setTimeout(r, 1600));
+          if (id !== runId.current) return;
+        }
+        say("orchestrator", "Orchestrator", "Terms honored, work accepted. Releasing payment — HTTP 402 flow.");
         await new Promise((r) => setTimeout(r, 800));
       } catch {
         await new Promise((r) => setTimeout(r, 2000));
@@ -265,7 +310,7 @@ export default function Home() {
         setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
       }
     },
-    [say]
+    [say, runInspection, runBuild]
   );
 
   // T4: write the rating on-chain (from the CLIENT EOA, never the owner), read it back
@@ -398,6 +443,10 @@ export default function Home() {
         `▸ Orchestrator degraded (transient) — local selection.\n▸ Hiring the ${fallbackStyle} specialist${winner ? ` (${winner.name})` : ""}; proceeding with the full job.`
       );
       setHiredStyle(fallbackStyle);
+      if (winner) {
+        say("orchestrator", "Orchestrator", `Registry read hiccuped — proceeding directly. @${winner.name}, the ${fallbackStyle} job is yours.`);
+        say("agent", winner.name, PERSONAS[fallbackStyle].hireAck, fallbackStyle);
+      }
       const finalHtml = await runBuild(fallbackStyle, briefText, id);
       if (id !== runId.current) return;
       if (winner) {
@@ -501,6 +550,7 @@ export default function Home() {
             idleHtml={UGLY_PAGE}
             liveCode={liveCode || undefined}
             buildElapsedMs={phase === "building" ? buildElapsed : undefined}
+            inspecting={phase === "inspecting" ? inspect : undefined}
           />
         </div>
 

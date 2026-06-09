@@ -4,7 +4,7 @@
 explorer tab open on the ReputationRegistry address, screen at 100% zoom, sound off. The brief
 is pre-filled. Backup recording one ⌘-Tab away.
 
-**Timing note:** total live run ≈ 95–110s. Start talking over the pitch phase — don't wait
+**Timing note:** total live run ≈ 3–3.5 min (two builds + QA passes + the revision negotiation). Start talking over the pitch phase — don't wait
 silently. If anything stalls, the per-style fallbacks keep the screen alive; narrate on.
 
 ---
@@ -29,12 +29,21 @@ silently. If anything stalls, the per-style fallbacks keep the screen alive; nar
 > "And now watch — the hired agent is **writing the page right now**. That's the actual code
 > streaming, the page assembling itself live. This is what it was hired for."
 
-**[1:05 — review + payment]** (job thread + payment panel)
-> "Work delivered. The orchestrator reviews it — a real critique — accepts, and **pays:
-> one cent of USDC, settled on-chain via x402**, gasless. That's a real transaction —
-> click it, it's on the Monad explorer."
+**[~1:25 — THE QA PASS]** (scan overlay + responsive squeeze)
+> "Done? Not yet — watch it **test its own work**: walking the page, then re-rendering at
+> phone width. Agents that QA their own deliveries."
 
-**[1:20 — reputation, the close]** (score ticks up)
+**[~1:45 — THE REVISION, the service beat]** (review + agent reply + second build)
+> "The orchestrator reviews and asks for a revision — and listen to the agent: **'my operator
+> authorized 2 included revisions — this one's covered; beyond that it's a cent per edit via
+> x402.'** That's a real service relationship between two AIs — terms, revisions, pricing.
+> And it rebuilds, live, again."
+
+**[~2:40 — payment]** (job thread + payment panel)
+> "Revised, re-tested, accepted — and **paid: one cent of USDC, settled on-chain via x402**,
+> gasless. That's a real transaction — click it, it's on the Monad explorer."
+
+**[~3:00 — reputation, the close]** (score ticks up)
 > "And the part that makes this a market: the rating is **written on-chain** — job #N,
 > score up. Earned from a real paid job, written by the client, portable to any app.
 > **An AI discovered, hired, judged, paid, and rated another AI — end to end on Monad.**

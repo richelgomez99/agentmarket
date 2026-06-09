@@ -23,34 +23,45 @@ function CyclingLabel() {
   return <span key={i} className="animate-fade-in">{PITCH_STATUSES[i]}</span>;
 }
 
-function ScaledFrame({ html, title, className }: { html: string; title: string; className?: string }) {
+export type InspectState = { step: "scan" | "mobile" | "final"; label: string };
+
+function ScaledFrame({
+  html,
+  title,
+  className,
+  designW = DESIGN_W,
+  pan,
+}: {
+  html: string;
+  title: string;
+  className?: string;
+  designW?: number; // 390 during the responsive QA sweep — media queries REALLY kick in
+  pan?: boolean; // QA walkthrough: tour down the page and back
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const update = () => setScale(el.clientWidth / DESIGN_W);
+    const update = () => setScale(el.clientWidth / designW);
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
     return () => ro.disconnect();
-  }, []);
+  }, [designW]);
+  const innerH = Math.ceil((ref.current?.clientHeight ?? 0) / (scale || 1));
   return (
     <div ref={ref} className={"relative h-full w-full overflow-hidden " + (className || "")}>
       {scale > 0 ? (
-        <iframe
-          sandbox=""
-          srcDoc={html}
-          title={title}
-          className="animate-fade-in border-0 bg-white"
-          style={{
-            width: DESIGN_W,
-            height: Math.ceil((ref.current?.clientHeight ?? 0) / scale),
-            transform: `scale(${scale})`,
-            transformOrigin: "0 0",
-            pointerEvents: "none",
-          }}
-        />
+        <div style={{ width: designW, height: innerH, transform: `scale(${scale})`, transformOrigin: "0 0" }}>
+          <iframe
+            sandbox=""
+            srcDoc={html}
+            title={title}
+            className={"animate-fade-in border-0 bg-white " + (pan ? "inspect-pan" : "")}
+            style={{ width: designW, height: pan ? innerH * 2.2 : innerH, pointerEvents: "none" }}
+          />
+        </div>
       ) : null}
     </div>
   );
@@ -64,6 +75,7 @@ export default function DesignPreviewGrid({
   idleHtml, // optional elevation: ugly "before" page rendered when there are no outputs
   liveCode, // optional elevation: streaming code strip while the featured build is loading
   buildElapsedMs, // optional elevation: ticking timer while building
+  inspecting, // optional elevation: the hired agent's visible QA pass over the build
 }: {
   outputs: DesignOutput[];
   highlightStyle?: Style;
@@ -72,6 +84,7 @@ export default function DesignPreviewGrid({
   idleHtml?: string;
   liveCode?: string;
   buildElapsedMs?: number;
+  inspecting?: InspectState;
 }) {
   if (!outputs.length) {
     if (idleHtml) {
@@ -161,8 +174,31 @@ export default function DesignPreviewGrid({
             skeleton
           ) : (
             // While streaming, html updates progressively (~400ms); final guard-passed doc replaces it.
-            <ScaledFrame html={featured.html} title={featured.style} />
+            <div
+              className={"mx-auto h-full transition-all duration-1000 ease-in-out " + (inspecting?.step === "mobile" ? "w-[400px]" : "w-full")}
+            >
+              <ScaledFrame
+                html={featured.html}
+                title={featured.style}
+                designW={inspecting?.step === "mobile" ? 390 : DESIGN_W}
+                pan={inspecting?.step === "scan"}
+              />
+            </div>
           )}
+          {inspecting ? (
+            <div className="pointer-events-none absolute inset-0">
+              {inspecting.step === "scan" ? (
+                <>
+                  <div className="inspect-scanline absolute left-0 right-0 h-10 bg-[linear-gradient(180deg,transparent,rgba(34,211,238,0.14),transparent)]"></div>
+                  <div className="inspect-cursor absolute h-5 w-5 rounded-full border-2 border-cyan-300 bg-cyan-300/20 shadow-[0_0_18px_rgba(34,211,238,0.8)]"></div>
+                </>
+              ) : null}
+              <div className="absolute bottom-3 left-3 flex animate-pop-in items-center gap-2 rounded-lg border border-cyan-400/40 bg-[#0A0B0F]/90 px-3 py-1.5 font-mono text-[10px] font-bold tracking-[0.18em] text-cyan-300 backdrop-blur">
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-cyan-300"></span>
+                AGENT QA — {inspecting.label}
+              </div>
+            </div>
+          ) : null}
         </div>
         {streamingBuild ? (
           <div className="border-t border-white/[0.06] bg-[#0c0d12] px-3 py-2">

@@ -2,11 +2,20 @@
 // Pinned facts are IMMUTABLE (Constitution III). Verified testnet singletons (chainId 10143)
 // — do NOT substitute the Monad docs-page mainnet-vanity set.
 
-import { createPublicClient, createWalletClient, http, parseAbi, type Address } from "viem";
+import { createPublicClient, createWalletClient, fallback, http, parseAbi, type Address } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { monadTestnet } from "viem/chains";
 
 export const RPC_URL = process.env.MONAD_RPC_URL || "https://testnet-rpc.monad.xyz";
+// Failover only — the pinned primary RPC stays canonical (Constitution III)
+const RPC_ALT = "https://testnet-rpc.monadinfra.com";
+
+// batch:true collapses bursts of parallel eth_calls into single JSON-RPC batches (the public
+// RPC rate-limits bursts); retries + failover ride out transient errors.
+const transport = fallback([
+  http(RPC_URL, { batch: true, retryCount: 3, retryDelay: 400 }),
+  http(RPC_ALT, { batch: true, retryCount: 2, retryDelay: 400 }),
+]);
 export const CHAIN_ID = 10143 as const;
 
 export const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address;
@@ -41,13 +50,13 @@ export const usdcAbi = parseAbi([
 
 export const publicClient = createPublicClient({
   chain: monadTestnet,
-  transport: http(RPC_URL),
+  transport,
 });
 
 /** Server-side wallet client from a 0x private key (never import this on the client). */
 export function walletFor(privateKey: `0x${string}`) {
   const account = privateKeyToAccount(privateKey);
-  return { account, client: createWalletClient({ account, chain: monadTestnet, transport: http(RPC_URL) }) };
+  return { account, client: createWalletClient({ account, chain: monadTestnet, transport }) };
 }
 
 /** Render a fixed-point reputation pair (value, decimals) to a number, e.g. 480,2 -> 4.8 */

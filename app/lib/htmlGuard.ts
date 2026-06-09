@@ -34,3 +34,18 @@ export function guardHtml(raw: string): { html: string; error?: undefined } | { 
   const err = validateHtml(html);
   return err ? { error: err } : { html };
 }
+
+/** Salvage a TRUNCATED stream (e.g. token-limit cutoff): if it's a substantial, script-free
+ * document, auto-close it so the real work renders instead of the generic fallback. */
+export function salvageHtml(raw: string): string | null {
+  let s = raw.replace(/```(?:html)?/gi, "");
+  const at = s.search(/<!doctype html/i) >= 0 ? s.search(/<!doctype html/i) : s.search(/<html[\s>]/i);
+  if (at < 0) return null;
+  s = s.slice(at).trim();
+  if (s.length < 1500) return null; // not enough real content to be worth salvaging
+  const low = s.toLowerCase();
+  if (low.includes("<script")) return null;
+  if (/(?:src|href)\s*=\s*["']https?:\/\//.test(low)) return null;
+  if (!low.includes("</html>")) s += "\n</body></html>";
+  return s;
+}
