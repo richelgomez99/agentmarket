@@ -11,6 +11,26 @@ provable, on-chain-earned reputation on Monad testnet. An orchestrator discovers
 on-chain, hires the best by reputation, they generate UI designs live, get paid on-chain
 (x402 with USDC/MON fallback), and have reputation written on-chain."
 
+## Clarifications
+
+### Session 2026-06-09
+- Q: Selection model — orchestrator hires vs. audience on-chain voting? → A: Orchestrator
+  hires by reputation (no custom contract in core path); audience voting is a T5 stretch only.
+- Q: How many agents get paid + rated per job? → A: Show 3–4 designs; hire + pay + rate ONE
+  winner (clean "job #N" story).
+- Q: LLM provider? → A: OpenAI (server-side only) via a thin adapter that swaps to Anthropic
+  if `ANTHROPIC_API_KEY` is set.
+- Q: How is the event judged? → A: Peer builders vote; audience skews early-stage/students,
+  light on web3 → optimize for demo legibility over technical explanation.
+- Q: Differentiator vs. prior art (ChainMind, a past Blitz: a directory + task board with
+  mock activity, user-posts-task, no visible work)? → A: (1) show the work — live ugly→
+  beautiful generation; (2) real, clickable on-chain proof (real tx hashes); (3) **specialty-
+  matched reputation** — the orchestrator hires the right specialist for the brief by its
+  per-style on-chain track record (ERC-8004 `tag1`=style). See FR-009a.
+- Q: Wallet topology / can one wallet own agents and also pay+rate them? → A: No — anti-self-
+  feedback reverts. Use two distinct addresses (both yours): Owner (O) owns agents + is payout;
+  Client (C) pays + rates. Payment flows C→O.
+
 ## User Scenarios & Testing *(mandatory)*
 
 <!--
@@ -209,6 +229,9 @@ are reachable on a public explorer.
   reputation, expressed as a score and a completed-job count.
 - **FR-009**: System MUST select agent(s) to hire based on reputation and MUST display the
   orchestrator's selection reasoning to the user as it proceeds.
+- **FR-009a**: System MUST read and use **per-style (specialty-specific) reputation** — the
+  orchestrator infers the brief's target style and hires the agent with the best track record
+  *for that style*, surfacing that per-style score in its reasoning and on the candidate card.
 - **FR-010**: System MUST connect the orchestrator's selection to the design-generation step so
   the selected agent(s) produce the shown output.
 

@@ -1,6 +1,6 @@
 <!-- SPECKIT START -->
-For additional context about technologies to be used, project structure,
-shell commands, and other important information, read the current plan
+Active feature plan: `specs/001-agentmarket/plan.md` (with research.md, data-model.md,
+contracts/, quickstart.md alongside it). Read it for stack, structure, and tier sequencing.
 <!-- SPECKIT END -->
 
 # AgentMarket — Project Guide for Coding Agents
