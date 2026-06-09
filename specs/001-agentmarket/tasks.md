@@ -18,21 +18,21 @@ checkpoint is committed.** `[P]` = parallelizable (different files, no incomplet
 
 Pre-done before the live demo. Prefer MONSKILLS (`/monskill`) for faucet/deploy/indexing.
 
-- [ ] T001 Install Monad Foundry fork (`curl -L https://foundry.category.xyz | bash`); verify `forge --version` and `cast --version` resolve (NOT standard Foundry)
-- [ ] T002 Scaffold the web app from `monad-developers/next-serwist-privy-embedded-wallet` into `app/` (Next.js App Router + TS + Tailwind + Privy)
-- [ ] T003 Install deps in `app/`: `viem@^2.40`, `openai`, `@x402/core @x402/evm @x402/fetch @x402/next` (`@x402/evm >=2.2.0`); confirm build runs
-- [ ] T004 Create `app/.env.example` documenting OPENAI_API_KEY, MONAD_RPC_URL, CLIENT_PRIVATE_KEY, OWNER_PRIVATE_KEY, NEXT_PUBLIC_PRIVY_APP_ID, AGENT_IDS; confirm `.env*` is gitignored (Constitution VI)
-- [ ] T005 Configure Privy + Monad testnet (chainId 10143, RPC) in `app/app/layout.tsx`; app boots with embedded-wallet login
-- [ ] T006 Generate two EOAs via `cast wallet new` — OWNER (O) and CLIENT (C), C≠O; fund O (a little MON) and C (MON) from the MetaMask treasury; store keys in `.env.local` only
-- [ ] T007 Get testnet USDC to CLIENT (C) via `faucet.circle.com` (select Monad Testnet)
-- [ ] T008 Confirm live ERC-8004 ABIs + addresses on the explorer (testnet singletons, NOT the docs-page mainnet set) per `contracts/erc8004-abis.md` (Constitution III)
-- [ ] T009 Write `app/scripts/register-agents.ts`: from OWNER (O), `register(agentURI)` for 4 agents (one per style; agent-card payout = O); save returned agentIds to `AGENT_IDS`
-- [ ] T010 Run T009 to pre-register the 4 agents on IdentityRegistry; verify each agentId + Registered event on the explorer
-- [ ] T010a Seed differentiated on-chain reputation: from the **CLIENT EOA** (≠ owner), write several `giveFeedback(agentId, value, valueDecimals, tag1=<style>, tag2="agentmarket", ...)` per agent in `app/scripts/seed-reputation.ts` so each agent has a real, varied **per-style** track record at demo time (e.g. DarkModeAgent strong at dark-mode); verify NewFeedback events + non-zero `getSummary` on the explorer. (Makes FR-008/FR-009a demoable — agents show "★4.8, 23 jobs" not zeros — and de-risks the T4 write path early.)
-- [ ] T011 [P] Stage the 4 style system prompts (dark-mode-premium, glassmorphism, brutalist, playful) in `app/lib/styles.ts` with hard output constraints (complete `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences)
-- [ ] T012 [P] Stage one hard-coded fallback HTML per style in `app/lib/styles.ts` (renders if a generation call fails/times out)
-- [ ] T013 [P] Define shared types in `app/lib/types.ts` (Style, Reputation, Agent, DesignOutput, Payment) per `contracts/ui-components.md`
-- [ ] **T014 — T0 CHECKPOINT**: app builds + `pnpm dev` starts clean; agents registered AND seeded with differentiated per-style reputation on-chain (explorer-verified, non-zero getSummary); wallets funded; `/code-review`; git commit
+- [x] T001 Install Monad Foundry fork (`curl -L https://foundry.category.xyz | bash`); verify `forge --version` and `cast --version` resolve (NOT standard Foundry)
+- [x] T002 Scaffold the web app from `monad-developers/next-serwist-privy-embedded-wallet` into `app/` (Next.js App Router + TS + Tailwind + Privy)
+- [x] T003 Install deps in `app/`: `viem@^2.40`, `openai`, `@x402/core @x402/evm @x402/fetch @x402/next` (`@x402/evm >=2.2.0`); confirm build runs
+- [x] T004 Create `app/.env.example` documenting OPENAI_API_KEY, MONAD_RPC_URL, CLIENT_PRIVATE_KEY, OWNER_PRIVATE_KEY, NEXT_PUBLIC_PRIVY_APP_ID, AGENT_IDS; confirm `.env*` is gitignored (Constitution VI)
+- [x] T005 Configure Privy + Monad testnet (chainId 10143, RPC) in `app/app/layout.tsx`; app boots with embedded-wallet login
+- [x] T006 Generate two EOAs via `cast wallet new` — OWNER (O) and CLIENT (C), C≠O; fund O (a little MON) and C (MON) from the MetaMask treasury; store keys in `.env.local` only
+- [x] T007 Get testnet USDC to CLIENT (C) via `faucet.circle.com` (select Monad Testnet)
+- [x] T008 Confirm live ERC-8004 ABIs + addresses on the explorer (testnet singletons, NOT the docs-page mainnet set) per `contracts/erc8004-abis.md` (Constitution III)
+- [x] T009 Write `app/scripts/register-agents.ts`: from OWNER (O), `register(agentURI)` for 4 agents (one per style; agent-card payout = O); save returned agentIds to `AGENT_IDS`
+- [x] T010 Run T009 to pre-register the 4 agents on IdentityRegistry; verify each agentId + Registered event on the explorer
+- [x] T010a Seed differentiated on-chain reputation: from the **CLIENT EOA** (≠ owner), write several `giveFeedback(agentId, value, valueDecimals, tag1=<style>, tag2="agentmarket", ...)` per agent in `app/scripts/seed-reputation.ts` so each agent has a real, varied **per-style** track record at demo time (e.g. DarkModeAgent strong at dark-mode); verify NewFeedback events + non-zero `getSummary` on the explorer. (Makes FR-008/FR-009a demoable — agents show "★4.8, 23 jobs" not zeros — and de-risks the T4 write path early.)
+- [x] T011 [P] Stage the 4 style system prompts (dark-mode-premium, glassmorphism, brutalist, playful) in `app/lib/styles.ts` with hard output constraints (complete `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences)
+- [x] T012 [P] Stage one hard-coded fallback HTML per style in `app/lib/styles.ts` (renders if a generation call fails/times out)
+- [x] T013 [P] Define shared types in `app/lib/types.ts` (Style, Reputation, Agent, DesignOutput, Payment) per `contracts/ui-components.md`
+- [x] **T014 — T0 CHECKPOINT**: app builds + `pnpm dev` starts clean; agents registered AND seeded with differentiated per-style reputation on-chain (explorer-verified, non-zero getSummary); wallets funded; `/code-review`; git commit
 
 ---
 
@@ -42,14 +42,14 @@ Pre-done before the live demo. Prefer MONSKILLS (`/monskill`) for faucet/deploy/
 fallback. **Independent test**: type a brief → 4 distinct previews render; force one to fail →
 its slot shows a styled fallback (no blank). Zero chain dependency.
 
-- [ ] T015 [P] [US1] Provider adapter in `app/lib/llm.ts` (OpenAI default; uses Anthropic if `ANTHROPIC_API_KEY` set); server-side only
-- [ ] T016 [P] [US1] HTML guard in `app/lib/htmlGuard.ts` (strip markdown fences, validate complete self-contained doc, reject external URLs/scripts)
-- [ ] T017 [US1] `POST /api/generate` route in `app/app/api/generate/route.ts` with `mode: "pitch"|"build"`: pitch = small/fast spec sample (JSON); build = full page **streamed** (chunked HTML for progressive iframe render + code strip); timeouts ~15s/~45s; on fail/invalid → fallback HTML `status:"fallback"`; never error-blank (per `contracts/api-routes.md`)
-- [ ] T018 [P] [US1] Integrate design-handoff components (from `specs/001-agentmarket/design/project/AgentMarket.tsx`): split `BriefInput`, `DesignPreviewGrid` (+ shared helpers) into `app/app/components/`, swap PREVIEW SHIMs for real react/lucide-react imports
-- [ ] T019 [US1] Elevate the build moment in `DesignPreviewGrid`/page: progressive `srcDoc` re-render (~400ms) while build streams, live code strip beside the featured build, build elapsed timer; idle state shows the "ugly before" page (not empty placeholders)
-- [ ] T020 [US1] Wire `app/app/page.tsx` (replace DemoHarness mocks): submit → 4 pitch calls concurrently → pitch grid fills live → (T1 stub: auto-pick style locally) → build-mode stream into featured render
-- [ ] T021 [US1] Verify hard-fail paths: forced pitch failure → styled fallback in slot; forced build-stream failure → fallback full page; others unaffected (SC-002)
-- [ ] **T022 — T1 CHECKPOINT**: build + dev-clean; `/browse`+`/qa` smoke (4 distinct previews render; forced-fail shows fallback) passes; `/code-review`; git commit. **This is a complete demo.**
+- [x] T015 [P] [US1] Provider adapter in `app/lib/llm.ts` (OpenAI default; uses Anthropic if `ANTHROPIC_API_KEY` set); server-side only
+- [x] T016 [P] [US1] HTML guard in `app/lib/htmlGuard.ts` (strip markdown fences, validate complete self-contained doc, reject external URLs/scripts)
+- [x] T017 [US1] `POST /api/generate` route in `app/app/api/generate/route.ts` with `mode: "pitch"|"build"`: pitch = small/fast spec sample (JSON); build = full page **streamed** (chunked HTML for progressive iframe render + code strip); timeouts ~15s/~45s; on fail/invalid → fallback HTML `status:"fallback"`; never error-blank (per `contracts/api-routes.md`)
+- [x] T018 [P] [US1] Integrate design-handoff components (from `specs/001-agentmarket/design/project/AgentMarket.tsx`): split `BriefInput`, `DesignPreviewGrid` (+ shared helpers) into `app/app/components/`, swap PREVIEW SHIMs for real react/lucide-react imports
+- [x] T019 [US1] Elevate the build moment in `DesignPreviewGrid`/page: progressive `srcDoc` re-render (~400ms) while build streams, live code strip beside the featured build, build elapsed timer; idle state shows the "ugly before" page (not empty placeholders)
+- [x] T020 [US1] Wire `app/app/page.tsx` (replace DemoHarness mocks): submit → 4 pitch calls concurrently → pitch grid fills live → (T1 stub: auto-pick style locally) → build-mode stream into featured render
+- [x] T021 [US1] Verify hard-fail paths: forced pitch failure → styled fallback in slot; forced build-stream failure → fallback full page; others unaffected (SC-002)
+- [x] **T022 — T1 CHECKPOINT**: build + dev-clean; `/browse`+`/qa` smoke (4 distinct previews render; forced-fail shows fallback) passes; `/code-review`; git commit. **This is a complete demo.**
 
 ---
 
