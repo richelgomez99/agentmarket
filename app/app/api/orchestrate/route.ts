@@ -132,7 +132,7 @@ record. Styles pitched: ${pitches.map((p) => p.style + (p.status === "fallback" 
         maxTokens: 200,
       });
     } catch {
-      narration = `▸ ${winner.name} pairs the best ${inferredStyle} pitch with the strongest proven record.\n▸ Reputation is on-chain and earned from paid jobs — it cannot be faked.`;
+      narration = `▸ ${winner.name} pairs the best ${inferredStyle} pitch with the strongest proven record.\n▸ Its reputation is earned from real paid jobs, recorded on-chain.`;
     }
     yield "▸ Pitch-by-pitch read:\n" + narration.trim() + "\n▸ Decision locked.";
     yield `\n${SENTINEL}` + JSON.stringify({
