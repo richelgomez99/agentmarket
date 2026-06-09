@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+.pnp/
+.pnp.js
+
+# Secrets / env — NEVER commit (Constitution Principle VI)
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+keystore/
+
+# Next.js / build
+.next/
+out/
+build/
+dist/
+*.tsbuildinfo
+next-env.d.ts
+
+# Foundry (Monad)
+contracts/out/
+contracts/cache/
+contracts/broadcast/**/dry-run/
+out/
+cache/
+
+# Logs / OS
+*.log
+npm-debug.log*
+.DS_Store
+
+# Claude local settings (may hold machine-specific config)
+.claude/settings.local.json
+
+# Vercel
+.vercel
