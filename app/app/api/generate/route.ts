@@ -9,7 +9,7 @@ import type { Style } from "@/lib/types";
 export const runtime = "nodejs";
 export const maxDuration = 90;
 
-const PITCH_TIMEOUT_MS = 15_000;
+const PITCH_TIMEOUT_MS = 25_000; // prod cold-start headroom
 const BUILD_TIMEOUT_MS = 58_000;
 
 const PITCH_INSTRUCTION = `This is a quick STYLE PITCH, not the full job: produce a compact
