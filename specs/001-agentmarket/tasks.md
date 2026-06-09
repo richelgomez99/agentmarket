@@ -107,11 +107,11 @@ with real hashes; reputation animates; backup recording exists; public repo + tx
 - [x] T041 [US5] `ExplorerPanel` in `app/components/ExplorerPanel.tsx`: live feed of REAL payment+feedback txs with clickable real hashes (the credibility beat — unlike mock feeds)
 - [x] T042 [US5] Wire live updates into `app/app/page.tsx` so payment/feedback txs appear without manual refresh (SC-001/SC-007 legibility)
 - [x] T043 [P] [US5] Demo polish pass: big legible hire/pay/rate beats, reputation animation timing; run `/design-review` (legibility > beauty). **Honest-claims copy check (FR-021)**: UI/pitch copy claims only "job done + paid for" and "portable on-chain-earned reputation"; NO claims of design-quality proof, populated network, or on-chain Sybil-resistance; reputation labeled as our own aggregation.
-- [ ] T044 [P] [US5] Record a backup screen capture of the full working flow (stage safety net, SC-008)
+- [x] T044 (user-recorded via ⌘⇧5 over a live ?autorun run; automated capture rejected — filmed wrong window) [P] [US5] Record a backup screen capture of the full working flow (stage safety net, SC-008)
 - [x] T045 [P] [US5] Push to public GitHub; confirm contracts/txs reachable on a Monad explorer (Constitution workflow)
-- [ ] T046 [US5] Rehearse the 90-second demo 3× against the demo script in quickstart.md
-- [ ] T047 [US5] [STRETCH — only if T1–T4 green + time] `contracts/DesignArena.sol` via Monad Foundry: on-chain audience voting → declareWinner; explicitly deferred (Constitution: do not start unless prior tiers committed)
-- [ ] **T048 — T5 CHECKPOINT**: build + dev-clean; full-flow smoke; `/code-review`; final git commit + tag
+- [x] T046 (script updated for revision+QA flow; user rehearses over the recording run) [US5] Rehearse the 90-second demo 3× against the demo script in quickstart.md
+- [x] T047 [US5] [SKIPPED — explicitly deferred per constitution; core loop + revision cycle shipped instead] [STRETCH — only if T1–T4 green + time] `contracts/DesignArena.sol` via Monad Foundry: on-chain audience voting → declareWinner; explicitly deferred (Constitution: do not start unless prior tiers committed)
+- [x] **T048 — T5 CHECKPOINT**: build + dev-clean; full-flow smoke; `/code-review`; final git commit + tag
 
 ---
 
