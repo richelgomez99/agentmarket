@@ -1,6 +1,17 @@
 <!--
 SYNC IMPACT REPORT
 ==================
+Version change: 1.0.0 → 1.0.1 (PATCH: clarifications from live source verification on
+  2026-06-09; no principle added/removed/redefined, pinned values unchanged).
+  - Principle III: added an address-set guard (the Monad docs ERC-8004 page lists a
+    DIFFERENT mainnet-vanity set; our pinned values are the verified testnet singletons).
+  - Additional Constraints: recorded the verified NewFeedback event signature for indexing.
+  Verification: ERC-8004 testnet addresses, no-auth giveFeedback signature, anti-self-feedback,
+  getSummary non-empty clientAddresses rule, x402 facilitator/USDC, chainId/RPC, and Validation
+  Registry absence on Monad all CONFIRMED against the canonical erc-8004/erc-8004-contracts repo,
+  the EIP text, Monad docs, and on-chain activity (testnet.monadscan.com).
+
+----- prior entry -----
 Version change: (template / unversioned) → 1.0.0
 Bump rationale: Initial ratification of the AgentMarket project constitution.
 
@@ -100,6 +111,11 @@ fixed-point pair: `value` (int128) + `valueDecimals` (e.g. value=9977, valueDeci
 99.77). These facts MUST be re-confirmed live on the explorer before wiring, but MUST NOT be
 silently changed in code without an explicit constitution amendment.
 
+**Address-set guard (verified 2026-06-09):** the official Monad docs ERC-8004 page lists a
+DIFFERENT, mainnet-vanity address set (`0x8004A169…` / `0x8004BAa1…`) and does not label
+testnet vs mainnet. The values pinned above are the **testnet singletons** (chainId 10143),
+confirmed live on `testnet.monadscan.com`. NEVER substitute the mainnet-vanity set.
+
 ### IV. Payment Fallback
 
 Payment MUST attempt **x402 first** (facilitator + network + USDC per Principle III). If x402
@@ -153,6 +169,10 @@ Supporting (non-canonical-but-useful) endpoints, consistent with Principle III:
 - Reputation has no on-chain aggregate score; compute it client-side via
   `getSummary(agentId, clientAddresses, tag1, tag2)` (clientAddresses MUST be non-empty) or by
   indexing `NewFeedback` events. This is the project's own aggregation — be ready to say so.
+- Verified `NewFeedback` event (for the live explorer / reputation panel):
+  `NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex,
+  int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2,
+  string endpoint, string feedbackURI, bytes32 feedbackHash)`.
 
 If any pinned fact in Principle III or this section is observed to differ live on the explorer
 at the event, that is a constitution amendment event (see Governance), not a silent edit.
@@ -189,4 +209,4 @@ deviation MUST be justified in writing or rejected.
   I–VII before committing. Complexity or any departure from the locked stack MUST be justified
   against the demo-first directive or it MUST NOT ship.
 
-**Version**: 1.0.0 | **Ratified**: 2026-06-09 | **Last Amended**: 2026-06-09
+**Version**: 1.0.1 | **Ratified**: 2026-06-09 | **Last Amended**: 2026-06-09
