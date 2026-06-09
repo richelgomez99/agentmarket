@@ -28,10 +28,11 @@ Pre-done before the live demo. Prefer MONSKILLS (`/monskill`) for faucet/deploy/
 - [ ] T008 Confirm live ERC-8004 ABIs + addresses on the explorer (testnet singletons, NOT the docs-page mainnet set) per `contracts/erc8004-abis.md` (Constitution III)
 - [ ] T009 Write `app/scripts/register-agents.ts`: from OWNER (O), `register(agentURI)` for 4 agents (one per style; agent-card payout = O); save returned agentIds to `AGENT_IDS`
 - [ ] T010 Run T009 to pre-register the 4 agents on IdentityRegistry; verify each agentId + Registered event on the explorer
+- [ ] T010a Seed differentiated on-chain reputation: from the **CLIENT EOA** (≠ owner), write several `giveFeedback(agentId, value, valueDecimals, tag1=<style>, tag2="agentmarket", ...)` per agent in `app/scripts/seed-reputation.ts` so each agent has a real, varied **per-style** track record at demo time (e.g. DarkModeAgent strong at dark-mode); verify NewFeedback events + non-zero `getSummary` on the explorer. (Makes FR-008/FR-009a demoable — agents show "★4.8, 23 jobs" not zeros — and de-risks the T4 write path early.)
 - [ ] T011 [P] Stage the 4 style system prompts (dark-mode-premium, glassmorphism, brutalist, playful) in `app/lib/styles.ts` with hard output constraints (complete `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences)
 - [ ] T012 [P] Stage one hard-coded fallback HTML per style in `app/lib/styles.ts` (renders if a generation call fails/times out)
 - [ ] T013 [P] Define shared types in `app/lib/types.ts` (Style, Reputation, Agent, DesignOutput, Payment) per `contracts/ui-components.md`
-- [ ] **T014 — T0 CHECKPOINT**: app builds + `pnpm dev` starts clean; agents registered on-chain (explorer-verified); wallets funded; `/code-review`; git commit
+- [ ] **T014 — T0 CHECKPOINT**: app builds + `pnpm dev` starts clean; agents registered AND seeded with differentiated per-style reputation on-chain (explorer-verified, non-zero getSummary); wallets funded; `/code-review`; git commit
 
 ---
 
@@ -105,7 +106,7 @@ with real hashes; reputation animates; backup recording exists; public repo + tx
 
 - [ ] T041 [US5] `ExplorerPanel` in `app/components/ExplorerPanel.tsx`: live feed of REAL payment+feedback txs with clickable real hashes (the credibility beat — unlike mock feeds)
 - [ ] T042 [US5] Wire live updates into `app/app/page.tsx` so payment/feedback txs appear without manual refresh (SC-001/SC-007 legibility)
-- [ ] T043 [P] [US5] Demo polish pass: big legible hire/pay/rate beats, reputation animation timing; run `/design-review` (legibility > beauty)
+- [ ] T043 [P] [US5] Demo polish pass: big legible hire/pay/rate beats, reputation animation timing; run `/design-review` (legibility > beauty). **Honest-claims copy check (FR-021)**: UI/pitch copy claims only "job done + paid for" and "portable on-chain-earned reputation"; NO claims of design-quality proof, populated network, or on-chain Sybil-resistance; reputation labeled as our own aggregation.
 - [ ] T044 [P] [US5] Record a backup screen capture of the full working flow (stage safety net, SC-008)
 - [ ] T045 [P] [US5] Push to public GitHub; confirm contracts/txs reachable on a Monad explorer (Constitution workflow)
 - [ ] T046 [US5] Rehearse the 90-second demo 3× against the demo script in quickstart.md
@@ -139,5 +140,5 @@ A complete, winning-on-its-own demo with zero chain risk. Everything above it is
 
 ---
 
-**Task count**: 48 total — T0: 14 (T001–T014) · T1/US1: 8 · T2/US2: 7 · T3/US3: 6 ·
+**Task count**: 49 total — T0: 15 (T001–T014 + T010a) · T1/US1: 8 · T2/US2: 7 · T3/US3: 6 ·
 T4/US4: 5 · T5/US5: 8. One green-checkpoint task per tier.
