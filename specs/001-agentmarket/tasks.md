@@ -1,0 +1,143 @@
+# Tasks: AgentMarket
+
+**Feature**: `001-agentmarket` | **Input**: spec.md, plan.md, research.md, data-model.md,
+contracts/, quickstart.md
+
+**Organization**: by the demo tier ladder (Constitution I). Tiers map to spec user stories.
+Each tier ENDS with a green-checkpoint task (build + dev server clean + smoke via gstack
+`/browse`+`/qa` + `/code-review` + git commit) and **no tier N+1 task may start until tier N's
+checkpoint is committed.** `[P]` = parallelizable (different files, no incomplete deps).
+
+**Paths** are relative to repo root; the Next.js app lives in `app/` (see plan.md structure).
+
+**MVP = Tier 1 (US1)** — a complete standalone demo with zero chain dependency.
+
+---
+
+## Phase 0 — T0 Environment & Staging (setup, no story label)
+
+Pre-done before the live demo. Prefer MONSKILLS (`/monskill`) for faucet/deploy/indexing.
+
+- [ ] T001 Install Monad Foundry fork (`curl -L https://foundry.category.xyz | bash`); verify `forge --version` and `cast --version` resolve (NOT standard Foundry)
+- [ ] T002 Scaffold the web app from `monad-developers/next-serwist-privy-embedded-wallet` into `app/` (Next.js App Router + TS + Tailwind + Privy)
+- [ ] T003 Install deps in `app/`: `viem@^2.40`, `openai`, `@x402/core @x402/evm @x402/fetch @x402/next` (`@x402/evm >=2.2.0`); confirm build runs
+- [ ] T004 Create `app/.env.example` documenting OPENAI_API_KEY, MONAD_RPC_URL, CLIENT_PRIVATE_KEY, OWNER_PRIVATE_KEY, NEXT_PUBLIC_PRIVY_APP_ID, AGENT_IDS; confirm `.env*` is gitignored (Constitution VI)
+- [ ] T005 Configure Privy + Monad testnet (chainId 10143, RPC) in `app/app/layout.tsx`; app boots with embedded-wallet login
+- [ ] T006 Generate two EOAs via `cast wallet new` — OWNER (O) and CLIENT (C), C≠O; fund O (a little MON) and C (MON) from the MetaMask treasury; store keys in `.env.local` only
+- [ ] T007 Get testnet USDC to CLIENT (C) via `faucet.circle.com` (select Monad Testnet)
+- [ ] T008 Confirm live ERC-8004 ABIs + addresses on the explorer (testnet singletons, NOT the docs-page mainnet set) per `contracts/erc8004-abis.md` (Constitution III)
+- [ ] T009 Write `app/scripts/register-agents.ts`: from OWNER (O), `register(agentURI)` for 4 agents (one per style; agent-card payout = O); save returned agentIds to `AGENT_IDS`
+- [ ] T010 Run T009 to pre-register the 4 agents on IdentityRegistry; verify each agentId + Registered event on the explorer
+- [ ] T011 [P] Stage the 4 style system prompts (dark-mode-premium, glassmorphism, brutalist, playful) in `app/lib/styles.ts` with hard output constraints (complete `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences)
+- [ ] T012 [P] Stage one hard-coded fallback HTML per style in `app/lib/styles.ts` (renders if a generation call fails/times out)
+- [ ] T013 [P] Define shared types in `app/lib/types.ts` (Style, Reputation, Agent, DesignOutput, Payment) per `contracts/ui-components.md`
+- [ ] **T014 — T0 CHECKPOINT**: app builds + `pnpm dev` starts clean; agents registered on-chain (explorer-verified); wallets funded; `/code-review`; git commit
+
+---
+
+## Phase 1 — T1 Live Design Generation, NO chain (US1, P1) 🎯 MVP
+
+**Goal**: brief → 4 distinct styled designs render live in sandboxed iframes, with per-style
+fallback. **Independent test**: type a brief → 4 distinct previews render; force one to fail →
+its slot shows a styled fallback (no blank). Zero chain dependency.
+
+- [ ] T015 [P] [US1] Provider adapter in `app/lib/llm.ts` (OpenAI default; uses Anthropic if `ANTHROPIC_API_KEY` set); server-side only
+- [ ] T016 [P] [US1] HTML guard in `app/lib/htmlGuard.ts` (strip markdown fences, validate complete self-contained doc, reject external URLs/scripts)
+- [ ] T017 [US1] `POST /api/generate` route in `app/app/api/generate/route.ts`: one style → styled HTML via llm.ts + styles.ts; ~25s timeout; on fail/invalid → fallback HTML, `status:"fallback"`; never error-blank (per `contracts/api-routes.md`)
+- [ ] T018 [P] [US1] `BriefInput` component in `app/components/BriefInput.tsx` (value/onChange/onSubmit/disabled)
+- [ ] T019 [P] [US1] `DesignPreviewGrid` in `app/components/DesignPreviewGrid.tsx`: per-style `<iframe sandbox srcDoc>` WITHOUT `allow-same-origin`; skeleton on loading; render fallback; never blank (Constitution V)
+- [ ] T020 [US1] Wire `app/app/page.tsx`: on submit, fire 4 `/api/generate` calls concurrently and stream each result into its preview slot
+- [ ] T021 [US1] Verify hard-fail path: simulate a timeout/throw for one style → fallback renders within bound; others unaffected (SC-002)
+- [ ] **T022 — T1 CHECKPOINT**: build + dev-clean; `/browse`+`/qa` smoke (4 distinct previews render; forced-fail shows fallback) passes; `/code-review`; git commit. **This is a complete demo.**
+
+---
+
+## Phase 2 — T2 Orchestrator + On-Chain Registry Discovery (US2, P2)
+
+**Goal**: orchestrator reads on-chain agents + per-style reputation, hires the right specialist
+for the brief (FR-009a), streams reasoning, then the hired agent generates.
+**Independent test**: submit a brief → candidates + reputations read from chain; reasoning
+streams; selection matches stated per-style criteria.
+
+- [ ] T023 [US2] `app/lib/chain.ts`: viem clients for Monad testnet + pinned ERC-8004 ABIs/addresses from `contracts/erc8004-abis.md` (do not refetch)
+- [ ] T024 [US2] `app/lib/registry.ts`: read registered agents (AGENT_IDS) + agent cards; `getSummary(agentId,[CLIENT_EOA],style,"")` per-style reputation (non-empty clientAddresses); aggregate to {count, score}
+- [ ] T025 [US2] `POST /api/orchestrate` in `app/app/api/orchestrate/route.ts`: infer brief's target style, read per-style reputation, stream hire reasoning, return {candidates, criteria, selectedAgentId, inferredStyle}; deterministic tie-break (FR-009a)
+- [ ] T026 [P] [US2] `AgentCandidateCard` in `app/components/AgentCandidateCard.tsx` (name, style, per-style ★score + "N paid jobs", HIRED state)
+- [ ] T027 [P] [US2] `OrchestratorReasoning` in `app/components/OrchestratorReasoning.tsx` (streams reasoning; big legible final hire line)
+- [ ] T028 [US2] Wire `app/app/page.tsx`: submit → `/api/orchestrate` (stream into reasoning + fill candidate cards) → selected agent drives the `/api/generate` step from T1
+- [ ] **T029 — T2 CHECKPOINT**: build + dev-clean; smoke (candidates+reputation read from chain; selection matches criteria, SC-003/SC-004); `/code-review`; git commit
+
+---
+
+## Phase 3 — T3 On-Chain Payment (US3, P3)
+
+**Goal**: pay the hired agent on-chain, x402-first with USDC/MON transfer fallback (C→O); UI
+shows the path + real explorer link. **Independent test**: accept a design → real payment tx;
+path labeled; force x402 fail → fallback settles + labeled.
+
+- [ ] T030 [US3] `app/lib/x402.ts`: x402 client/settle (facilitator, eip155:10143, USDC, exact scheme) from CLIENT EOA; detect settle failure/unreachable
+- [ ] T031 [US3] Transfer fallback in `app/lib/x402.ts` (or `lib/chain.ts`): viem USDC `transfer` (or MON transfer) C→O on x402 failure
+- [ ] T032 [US3] `POST /api/pay` in `app/app/api/pay/route.ts`: x402 first → fallback; return {path, txHash, explorerUrl, status} with the real settled path (Constitution IV; per `contracts/api-routes.md`)
+- [ ] T033 [P] [US3] `PaymentPanel` in `app/components/PaymentPanel.tsx`: amount, path used (x402 vs transfer), status, clickable real explorer link
+- [ ] T034 [US3] Wire `app/app/page.tsx`: on accept → `/api/pay` → PaymentPanel; verify forced-x402-fail path labels fallback correctly (SC-005)
+- [ ] **T035 — T3 CHECKPOINT**: build + dev-clean; smoke (real payment tx on explorer; path labeled; fallback works); `/code-review`; git commit
+
+---
+
+## Phase 4 — T4 On-Chain Reputation Write + Read (US4, P4)
+
+**Goal**: write `giveFeedback` from CLIENT EOA (tag1=style), re-read getSummary, animate the
+tick-up. **Independent test**: after payment → real feedback tx by non-owner caller; reputation
+updates; clickable explorer link.
+
+- [ ] T036 [US4] `POST /api/feedback` in `app/app/api/feedback/route.ts`: `giveFeedback(agentId,100,0,tag1=style,tag2="agentmarket","","",0x0)` from CLIENT EOA (≠ OWNER — else reverts); then re-read `getSummary(agentId,[CLIENT_EOA],style,"")`; return {txHash, explorerUrl, reputation}
+- [ ] T037 [P] [US4] `ReputationPanel` in `app/components/ReputationPanel.tsx`: animate score previous→new, "job #N" increment, clickable real explorer link
+- [ ] T038 [US4] Wire `app/app/page.tsx`: after pay → `/api/feedback` → ReputationPanel reflects updated count+score (SC-006)
+- [ ] T039 [US4] Verify anti-self-feedback: confirm the write succeeds from C and would revert from O (sanity check, not shipped)
+- [ ] **T040 — T4 CHECKPOINT**: build + dev-clean; smoke (real feedback tx by non-owner; reputation ticks up; explorer link); `/code-review`; git commit
+
+---
+
+## Phase 5 — T5 Polish, Live Explorer & Proof (US5, P5)
+
+**Goal**: legible live proof + safety net. **Independent test**: explorer panel updates live
+with real hashes; reputation animates; backup recording exists; public repo + txs reachable.
+
+- [ ] T041 [US5] `ExplorerPanel` in `app/components/ExplorerPanel.tsx`: live feed of REAL payment+feedback txs with clickable real hashes (the credibility beat — unlike mock feeds)
+- [ ] T042 [US5] Wire live updates into `app/app/page.tsx` so payment/feedback txs appear without manual refresh (SC-001/SC-007 legibility)
+- [ ] T043 [P] [US5] Demo polish pass: big legible hire/pay/rate beats, reputation animation timing; run `/design-review` (legibility > beauty)
+- [ ] T044 [P] [US5] Record a backup screen capture of the full working flow (stage safety net, SC-008)
+- [ ] T045 [P] [US5] Push to public GitHub; confirm contracts/txs reachable on a Monad explorer (Constitution workflow)
+- [ ] T046 [US5] Rehearse the 90-second demo 3× against the demo script in quickstart.md
+- [ ] T047 [US5] [STRETCH — only if T1–T4 green + time] `contracts/DesignArena.sol` via Monad Foundry: on-chain audience voting → declareWinner; explicitly deferred (Constitution: do not start unless prior tiers committed)
+- [ ] **T048 — T5 CHECKPOINT**: build + dev-clean; full-flow smoke; `/code-review`; final git commit + tag
+
+---
+
+## Dependencies & Execution Order
+
+- **T0 (Phase 0)** blocks everything (env, wallets, registered agents, staged prompts).
+- **T1 (US1)** depends only on T0 → MVP, fully demoable alone.
+- **T2 (US2)** depends on T1 (reuses the generation flow) + T0 chain setup.
+- **T3 (US3)** depends on T2 (a selected on-chain agent with a payout address).
+- **T4 (US4)** depends on T3 (completed payment) + T2 (on-chain identities).
+- **T5 (US5)** depends on T1–T4 working end-to-end.
+- **Hard rule (Constitution I)**: do not start a tier until the prior tier's CHECKPOINT task is committed.
+
+## Parallel Opportunities
+
+- T0: T011, T012, T013 in parallel.
+- T1: T015, T016 in parallel; T018, T019 in parallel (distinct files).
+- T2: T026, T027 in parallel. T3: T033 parallel with route work. T4: T037 parallel.
+- T5: T043, T044, T045 in parallel.
+- The 4 style prompts/fallbacks (within T011/T012) are independent and parallelizable.
+
+## Suggested MVP scope
+
+**Tier 1 (US1) only** — type a brief → 4 distinct styled designs render live with fallback.
+A complete, winning-on-its-own demo with zero chain risk. Everything above it is upside.
+
+---
+
+**Task count**: 48 total — T0: 14 (T001–T014) · T1/US1: 8 · T2/US2: 7 · T3/US3: 6 ·
+T4/US4: 5 · T5/US5: 8. One green-checkpoint task per tier.
