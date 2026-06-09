@@ -1,6 +1,7 @@
 "use client";
-// From the design handoff (specs/001-agentmarket/design) — presentational only.
-import { Sparkles, Zap, ArrowRight } from "lucide-react";
+// Brief composer — multi-line so a real brand brief is readable at a glance.
+// Enter submits (Shift+Enter for a new line). Same prop contract as the design handoff.
+import { FileText, Zap, ArrowRight } from "lucide-react";
 
 export default function BriefInput({
   value,
@@ -15,31 +16,48 @@ export default function BriefInput({
 }) {
   return (
     <form
-      className="flex w-full items-stretch gap-3"
+      className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03] transition focus-within:border-cyan-400/50 focus-within:ring-2 focus-within:ring-cyan-400/20"
       onSubmit={(e) => {
         e.preventDefault();
         if (!disabled) onSubmit();
       }}
     >
-      <div className="relative flex-1">
-        <Sparkles size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500" />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          disabled={disabled}
-          placeholder="Describe the page you want built…"
-          className="h-14 w-full rounded-xl border border-white/10 bg-white/[0.04] pl-11 pr-4 text-base text-zinc-100 placeholder-zinc-500 outline-none transition focus:border-cyan-400/50 focus:bg-white/[0.06] focus:ring-2 focus:ring-cyan-400/20 disabled:opacity-60"
-        />
+      <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-4 py-2">
+        <span className="flex items-center gap-2 font-mono text-[10px] font-medium tracking-[0.2em] text-zinc-400">
+          <FileText size={12} className="text-cyan-300" /> DESIGN BRIEF
+        </span>
+        <span className="hidden font-mono text-[9.5px] tracking-[0.1em] text-zinc-600 sm:inline">
+          include your brand: colors · type · mood — the orchestrator hires against it
+        </span>
       </div>
-      <button
-        type="submit"
+      <textarea
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            if (!disabled) onSubmit();
+          }
+        }}
         disabled={disabled}
-        className="group flex h-14 shrink-0 items-center gap-2.5 rounded-xl bg-cyan-400 px-6 font-display text-sm font-bold tracking-wide text-[#06262c] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
-      >
-        <Zap size={17} fill="currentColor" />
-        <span className="hidden sm:inline">HIRE AN AGENT</span>
-        <ArrowRight size={16} className="transition-transform group-hover:translate-x-0.5" />
-      </button>
+        rows={3}
+        placeholder={"Describe the page you want built…\ne.g. Rebuild our landing page. Brand: premium, nocturnal. Colors: near-black + gold. Type: serif display."}
+        className="block w-full resize-none bg-transparent px-4 py-3 text-[15px] leading-relaxed text-zinc-100 placeholder-zinc-600 outline-none disabled:opacity-60"
+      />
+      <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] px-3 py-2">
+        <span className="px-1 font-mono text-[9.5px] tracking-[0.1em] text-zinc-600">
+          enter ↵ to post · shift+enter for a new line
+        </span>
+        <button
+          type="submit"
+          disabled={disabled}
+          className="group flex h-10 shrink-0 items-center gap-2 rounded-lg bg-cyan-400 px-5 font-display text-[13px] font-bold tracking-wide text-[#06262c] transition hover:bg-cyan-300 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          <Zap size={15} fill="currentColor" />
+          <span>HIRE AN AGENT</span>
+          <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
+        </button>
+      </div>
     </form>
   );
 }

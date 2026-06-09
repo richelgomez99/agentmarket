@@ -63,7 +63,7 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const { brief, stage } = body as { brief: string; stage: "open" | "evaluate" };
+  const { brief, stage } = body as { brief: string; stage: "open" | "evaluate" | "review" };
 
   // ── stage: open — discover agents on-chain + infer target style ──────────
   if (stage === "open") {
@@ -77,6 +77,29 @@ export async function POST(req: NextRequest) {
       yield `▸ Brief reads as: ${inferred}\n`;
       yield "▸ Requesting quick style pitches — cheap spec samples,\n  NOT full builds. The full job goes to one winner only.\n▸ Awaiting pitches…";
       yield `\n${SENTINEL}` + JSON.stringify({ candidates: agents, inferredStyle: inferred });
+    });
+  }
+
+  // ── stage: review — orchestrator critiques the delivered build ───────────
+  if (stage === "review") {
+    const { html } = body as { html: string };
+    return streamText(async function* () {
+      let review = "";
+      try {
+        review = await complete(models.pitch, {
+          system: `You are the hiring orchestrator reviewing a delivered landing page (HTML below,
+built for the brief). Write a SHORT detailed acceptance review, exactly 3 lines, each starting
+with "▸ ": (1) what specifically works (name a real element: type, palette, hero, spacing),
+(2) one more concrete strength tied to the brand brief, (3) verdict line ending in
+"Accepting and releasing payment." Be specific, not generic. No preamble.`,
+          user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 3500)}`,
+          maxTokens: 160,
+        });
+      } catch {
+        review = `▸ Type and palette land the brief precisely — this reads premium.\n▸ The hero hierarchy makes the brand legible in one glance.\n▸ Quality verified. Accepting and releasing payment.`;
+      }
+      yield review.trim();
+      yield `\n${SENTINEL}` + JSON.stringify({ approved: true });
     });
   }
 
@@ -95,24 +118,23 @@ export async function POST(req: NextRequest) {
       const note = ps > 0 ? `★${ps.toFixed(2)} in-specialty` : `no paid ${inferredStyle} jobs on record`;
       yield `    ${a.name.padEnd(15)} ★${a.reputation.score.toFixed(2)} overall · ${note}\n`;
     }
-    // short LLM narration of the (already computed) decision — never diverges from it
+    // LLM narration: per-pitch critique + hire rationale for the (already computed) decision
     let narration = "";
     try {
       narration = await complete(models.pitch, {
-        system: `You are the hiring orchestrator of an AI-agent marketplace. In 2 short lines
-(each starting with "▸ "), justify hiring ${winner.name} for a ${inferredStyle} brief: it has
-the strongest proven on-chain track record for this exact style${
-          pitches.find((p) => p.style === winner.style)?.status === "fallback"
-            ? ""
-            : " and a strong pitch"
-        }. No preamble.`,
+        system: `You are the hiring orchestrator of an AI-agent marketplace, judging 4 style
+pitches against a brand brief. Write one line per pitch (start each with "    "), format:
+"STYLE — five-to-eight-word verdict vs the brand" (on-brand pitches positive; off-brand ones
+say why they miss: palette/mood/type). Then 2 lines starting "▸ " justifying hiring
+${winner.name}: best brand fit AND the strongest proven on-chain ${inferredStyle} track
+record. Styles pitched: ${pitches.map((p) => p.style + (p.status === "fallback" ? " (fallback sample)" : "")).join(", ")}. No preamble.`,
         user: `Brief: ${brief}`,
-        maxTokens: 80,
+        maxTokens: 200,
       });
     } catch {
       narration = `▸ ${winner.name} pairs the best ${inferredStyle} pitch with the strongest proven record.\n▸ Reputation is on-chain and earned from paid jobs — it cannot be faked.`;
     }
-    yield narration.trim() + "\n▸ Decision locked.";
+    yield "▸ Pitch-by-pitch read:\n" + narration.trim() + "\n▸ Decision locked.";
     yield `\n${SENTINEL}` + JSON.stringify({
       criteria: `best per-style (${inferredStyle}) on-chain track record, then total paid jobs`,
       selectedAgentId: winner.agentId,

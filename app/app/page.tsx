@@ -6,6 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Zap } from "lucide-react";
 import BriefInput from "./components/BriefInput";
+import JobThread, { type ThreadMsg } from "./components/JobThread";
 import OrchestratorReasoning from "./components/OrchestratorReasoning";
 import AgentCandidateCard from "./components/AgentCandidateCard";
 import DesignPreviewGrid from "./components/DesignPreviewGrid";
@@ -52,7 +53,9 @@ const PHASE_HEADLINE: Record<Phase, string> = {
 
 export default function Home() {
   const [phase, setPhase] = useState<Phase>("idle");
-  const [brief, setBrief] = useState("A dark-mode landing page for an AI coffee startup");
+  const [brief, setBrief] = useState(
+    "Our landing page looks like generic AI output. Rebuild it. Brand: Nocturne Coffee — premium, nocturnal, quiet luxury. Colors: near-black with a warm gold accent. Type: elegant serif display. Mood: brewed for the late shift."
+  );
   const [outputs, setOutputs] = useState<DesignOutput[]>([]);
   const [inferredStyle, setInferredStyle] = useState<Style | undefined>();
   const [hiredStyle, setHiredStyle] = useState<Style | undefined>();
@@ -63,6 +66,8 @@ export default function Home() {
   const [payment, setPayment] = useState<Payment | undefined>();
   const [events, setEvents] = useState<ExplorerEvent[]>([]);
   const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
+  const [thread, setThread] = useState<ThreadMsg[]>([]);
+  const [appliedCount, setAppliedCount] = useState(0);
   const runId = useRef(0);
 
   // Idle market rail: real agents + on-chain reputation, read at mount (T2)
@@ -84,7 +89,15 @@ export default function Home() {
     return () => clearInterval(iv);
   }, [phase]);
 
-  const runBuild = useCallback(async (style: Style, briefText: string, id: number) => {
+  // agents "apply" one by one when the brief is posted
+  useEffect(() => {
+    if (phase !== "pitching") return;
+    setAppliedCount(0);
+    const timers = [600, 1300, 2100, 2800].map((ms, i) => setTimeout(() => setAppliedCount(i + 1), ms));
+    return () => timers.forEach(clearTimeout);
+  }, [phase]);
+
+  const runBuild = useCallback(async (style: Style, briefText: string, id: number): Promise<string> => {
     setPhase("building");
     setOutputs((prev) => [{ style, html: "", status: "loading" }, ...prev.filter((o) => o.style !== style)]);
     let acc = "";
@@ -111,7 +124,7 @@ export default function Home() {
       const dec = new TextDecoder();
       for (;;) {
         const { done, value } = await reader.read();
-        if (id !== runId.current) return; // superseded run
+        if (id !== runId.current) return ""; // superseded run
         if (done) break;
         acc += dec.decode(value, { stream: true });
         setLiveCode(acc);
@@ -123,24 +136,54 @@ export default function Home() {
       }
       // finalize: sentinel fallback or guarded final doc
       const sentinel = acc.lastIndexOf("<!--FALLBACK-->");
+      let finalHtml: string;
       if (sentinel >= 0) {
-        paint({ html: acc.slice(sentinel + "<!--FALLBACK-->".length), status: "fallback", elapsedMs: Date.now() - t0 });
+        finalHtml = acc.slice(sentinel + "<!--FALLBACK-->".length);
+        paint({ html: finalHtml, status: "fallback", elapsedMs: Date.now() - t0 });
       } else {
         const g = guardHtml(acc);
-        if (g.html) paint({ html: g.html, status: "generated", elapsedMs: Date.now() - t0 });
-        else paint({ html: styleById(style).fallbackHtml, status: "fallback", elapsedMs: Date.now() - t0 });
+        finalHtml = g.html ?? styleById(style).fallbackHtml;
+        paint({ html: finalHtml, status: g.html ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
       }
+      setLiveCode("");
+      return finalHtml;
     } catch {
-      if (id !== runId.current) return;
-      paint({ html: styleById(style).fallbackHtml, status: "fallback", elapsedMs: Date.now() - t0 });
+      if (id !== runId.current) return "";
+      const fb = styleById(style).fallbackHtml;
+      paint({ html: fb, status: "fallback", elapsedMs: Date.now() - t0 });
+      setLiveCode("");
+      return fb;
     }
-    setLiveCode("");
   }, []);
 
-  // T3: accept the work -> pay the hired agent on-chain (x402-first, fallback surfaced)
-  const runPayment = useCallback(async (payoutAddress: string, id: number) => {
+  // T3: review conversation -> accept -> pay the hired agent on-chain (x402-first)
+  const runPayment = useCallback(async (payoutAddress: string, agentName: string, briefText: string, finalHtml: string, id: number) => {
     setPhase("awaiting"); // HTTP 402 — orchestrator reviews the delivered build
-    await new Promise((r) => setTimeout(r, 2600));
+    // the orchestrator's detailed acceptance review (agent-to-agent conversation)
+    try {
+      const rev = await consumeOrchestrate<{ approved: boolean }>(
+        await fetch("/api/orchestrate", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ stage: "review", brief: briefText, html: finalHtml }),
+        })
+      );
+      if (id !== runId.current) return;
+      setThread([{ who: "orchestrator", name: "Orchestrator", text: rev.text }]);
+      await new Promise((r) => setTimeout(r, 1800));
+      if (id !== runId.current) return;
+      setThread((t) => [
+        ...t,
+        {
+          who: "agent",
+          name: agentName,
+          text: "Glad it lands. This build includes 3 revisions — further edits are $0.01 each, settled via x402. Send notes any time.",
+        },
+      ]);
+      await new Promise((r) => setTimeout(r, 1600));
+    } catch {
+      await new Promise((r) => setTimeout(r, 2000));
+    }
     if (id !== runId.current) return;
     setPhase("paying");
     setPayment({ path: "x402", txHash: "", explorerUrl: "", status: "pending", amountUsd: 0.01 });
@@ -199,6 +242,7 @@ export default function Home() {
     setReasoning("");
     setPayment(undefined);
     setRating(undefined); // events intentionally persist — the explorer feed grows across jobs
+    setThread([]);
     setPhase("pitching");
     setOutputs(STYLES.map((s) => ({ style: s.id, html: "", status: "loading" as const })));
 
@@ -265,9 +309,9 @@ export default function Home() {
       await new Promise((r) => setTimeout(r, 1200));
       if (id !== runId.current) return;
 
-      await runBuild(winnerStyle, briefText, id);
+      const finalHtml = await runBuild(winnerStyle, briefText, id);
       if (id !== runId.current) return;
-      await runPayment(winner?.payoutAddress ?? "", id); // T3
+      await runPayment(winner?.payoutAddress ?? "", winner?.name ?? "Agent", briefText, finalHtml, id); // T3
       if (id !== runId.current) return;
       if (winner) await runRating(winner, id); // T4
       if (id !== runId.current) return;
@@ -330,15 +374,21 @@ export default function Home() {
             streaming={phase === "pitching" || phase === "evaluating"}
             selectedAgentName={hiredStyle ? hiredAgent?.name : undefined}
           />
+          <JobThread messages={thread} />
           <div>
             <div className="mb-2.5 flex items-center justify-between px-1">
               <span className="font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">AGENT MARKET</span>
               <span className="font-mono text-[10px] text-zinc-600">{agents.length} REGISTERED</span>
             </div>
             <div className="flex flex-col gap-2.5">
-              {agents.map((a) => (
+              {agents.map((a, i) => (
                 <div key={a.agentId} className={"transition-all duration-700 " + (hiredStyle && !a.hired ? "opacity-40 saturate-50" : "")}>
                   <AgentCandidateCard agent={a} inferredStyle={phase !== "idle" ? inferredStyle : undefined} selected={!!a.hired} />
+                  {phase === "pitching" && i < appliedCount ? (
+                    <div className="mt-1 flex animate-pop-in items-center gap-1.5 px-1 font-mono text-[9px] tracking-[0.18em] text-cyan-300">
+                      <span className="h-1 w-1 animate-pulse rounded-full bg-cyan-300"></span>APPLIED · PREPARING PITCH
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

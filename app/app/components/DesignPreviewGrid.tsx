@@ -1,11 +1,60 @@
 "use client";
 // From the design handoff (specs/001-agentmarket/design), elevated for the build moment:
-// - idleHtml: the "ugly before" page shown at idle (the problem we transform)
+// - idleHtml: the "before" page shown at idle (the problem we transform)
 // - liveCode: streaming raw HTML shown in a code strip while the build renders progressively
+// - ScaledFrame: renders pages at desktop width (1280) scaled down to fit, so every preview
+//   shows the FULL page layout (zoomed out), not a cropped corner
 // Iframes are sandboxed WITHOUT allow-same-origin (Constitution V).
+import { useLayoutEffect, useRef, useState } from "react";
 import { Loader2, AlertTriangle, CheckCircle2, Timer } from "lucide-react";
 import type { DesignOutput, Style } from "@/lib/types";
 import { STYLE_META } from "./shared";
+
+const DESIGN_W = 1280; // desktop viewport the generated pages are designed for
+
+const PITCH_STATUSES = ["INGESTING BRIEF", "STUDYING BRAND KIT", "REVIEWING CURRENT SITE", "DRAFTING CONCEPT", "PITCHING"];
+
+function CyclingLabel() {
+  const [i, setI] = useState(0);
+  useLayoutEffect(() => {
+    const iv = setInterval(() => setI((v) => (v + 1) % PITCH_STATUSES.length), 1800);
+    return () => clearInterval(iv);
+  }, []);
+  return <span key={i} className="animate-fade-in">{PITCH_STATUSES[i]}</span>;
+}
+
+function ScaledFrame({ html, title, className }: { html: string; title: string; className?: string }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const update = () => setScale(el.clientWidth / DESIGN_W);
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div ref={ref} className={"relative h-full w-full overflow-hidden " + (className || "")}>
+      {scale > 0 ? (
+        <iframe
+          sandbox=""
+          srcDoc={html}
+          title={title}
+          className="animate-fade-in border-0 bg-white"
+          style={{
+            width: DESIGN_W,
+            height: Math.ceil((ref.current?.clientHeight ?? 0) / scale),
+            transform: `scale(${scale})`,
+            transformOrigin: "0 0",
+            pointerEvents: "none",
+          }}
+        />
+      ) : null}
+    </div>
+  );
+}
 
 export default function DesignPreviewGrid({
   outputs,
@@ -30,10 +79,10 @@ export default function DesignPreviewGrid({
         <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#101218]">
           <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] px-3 py-2">
             <span className="font-mono text-[10px] tracking-[0.18em] text-zinc-400">THE PROBLEM — CURRENT PAGE</span>
-            <span className="rounded bg-red-400/10 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.15em] text-red-400">UNSTYLED</span>
+            <span className="rounded bg-red-400/10 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.15em] text-red-400">GENERIC AI BUILD</span>
           </div>
           <div className="relative h-[430px] bg-[#0c0d12] xl:h-[510px]">
-            <iframe sandbox="" srcDoc={idleHtml} title="before" className="h-full w-full border-0 bg-white"></iframe>
+            <ScaledFrame html={idleHtml} title="before" />
           </div>
         </div>
       );
@@ -67,7 +116,7 @@ export default function DesignPreviewGrid({
   const statusChip = (o: DesignOutput, isBuild: boolean) =>
     o.status === "loading" ? (
       <span className="flex shrink-0 items-center gap-1.5 font-mono text-[9.5px] tracking-[0.12em] text-cyan-300">
-        <Loader2 size={11} className="animate-spin" /> {isBuild ? "BUILDING" : "PITCHING"}
+        <Loader2 size={11} className="animate-spin" /> {isBuild ? "BUILDING" : <CyclingLabel />}
         {isBuild && buildElapsedMs !== undefined ? <span className="text-zinc-500">· {(buildElapsedMs / 1000).toFixed(1)}s</span> : null}
       </span>
     ) : o.status === "generated" ? (
@@ -85,67 +134,47 @@ export default function DesignPreviewGrid({
       </span>
     );
 
-  // ── build layout: hired agent's full build big, losing pitches small ──
+  // ── build layout: the hired agent's full build, MAXIMIZED (losing pitches hidden) ──
   if (featured) {
     const streamingBuild = featured.status === "loading" && !!liveCode;
     return (
-      <div className="flex flex-col gap-4">
-        <div
-          className={
-            "overflow-hidden rounded-xl border transition-all duration-500 " +
-            (featured.status === "generated"
-              ? "border-cyan-400/60 shadow-[0_0_36px_-6px_rgba(34,211,238,0.45)] ring-1 ring-cyan-400/30"
-              : "border-white/[0.08] bg-[#101218]")
-          }
-        >
-          <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] bg-[#101218] px-3 py-2">
-            <div className="flex min-w-0 items-center gap-2">
-              <span className={"h-1.5 w-1.5 shrink-0 rounded-full " + STYLE_META[featured.style].dot}></span>
-              <span className="truncate font-mono text-[10px] tracking-[0.18em] text-zinc-400">{STYLE_META[featured.style].label}</span>
-              <span className="shrink-0 animate-pop-in rounded bg-cyan-400/15 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.15em] text-cyan-300">
-                FULL BUILD · HIRED AGENT
-              </span>
-            </div>
-            {statusChip(featured, true)}
+      <div
+        className={
+          "overflow-hidden rounded-xl border transition-all duration-500 " +
+          (featured.status === "generated"
+            ? "border-cyan-400/60 shadow-[0_0_36px_-6px_rgba(34,211,238,0.45)] ring-1 ring-cyan-400/30"
+            : "border-white/[0.08] bg-[#101218]")
+        }
+      >
+        <div className="flex items-center justify-between gap-2 border-b border-white/[0.06] bg-[#101218] px-3 py-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <span className={"h-1.5 w-1.5 shrink-0 rounded-full " + STYLE_META[featured.style].dot}></span>
+            <span className="truncate font-mono text-[10px] tracking-[0.18em] text-zinc-400">{STYLE_META[featured.style].label}</span>
+            <span className="shrink-0 animate-pop-in rounded bg-cyan-400/15 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.15em] text-cyan-300">
+              FULL BUILD · HIRED AGENT
+            </span>
           </div>
-          <div className="relative h-[430px] bg-[#0c0d12] xl:h-[510px]">
-            {featured.status === "loading" && !featured.html ? (
-              skeleton
-            ) : (
-              // While streaming, html updates progressively (~400ms); final guard-passed doc replaces it.
-              <iframe sandbox="" srcDoc={featured.html} title={featured.style} className="h-full w-full animate-fade-in border-0 bg-white"></iframe>
-            )}
+          {statusChip(featured, true)}
+        </div>
+        <div className="relative h-[62vh] min-h-[480px] bg-[#0c0d12]">
+          {featured.status === "loading" && !featured.html ? (
+            skeleton
+          ) : (
+            // While streaming, html updates progressively (~400ms); final guard-passed doc replaces it.
+            <ScaledFrame html={featured.html} title={featured.style} />
+          )}
+        </div>
+        {streamingBuild ? (
+          <div className="border-t border-white/[0.06] bg-[#0c0d12] px-3 py-2">
+            <div className="mb-1 flex items-center gap-2 font-mono text-[9px] tracking-[0.2em] text-zinc-500">
+              <Timer size={10} className="text-cyan-300" /> LIVE — AGENT IS WRITING THE PAGE
+            </div>
+            <pre className="h-20 overflow-hidden whitespace-pre-wrap break-all font-mono text-[9.5px] leading-[1.5] text-cyan-200/60">
+              {liveCode.slice(-900)}
+              <span className="ml-0.5 inline-block h-2.5 w-1.5 animate-pulse bg-cyan-300 align-middle"></span>
+            </pre>
           </div>
-          {streamingBuild ? (
-            <div className="border-t border-white/[0.06] bg-[#0c0d12] px-3 py-2">
-              <div className="mb-1 flex items-center gap-2 font-mono text-[9px] tracking-[0.2em] text-zinc-500">
-                <Timer size={10} className="text-cyan-300" /> LIVE — AGENT IS WRITING THE PAGE
-              </div>
-              <pre className="h-20 overflow-hidden whitespace-pre-wrap break-all font-mono text-[9.5px] leading-[1.5] text-cyan-200/60">
-                {liveCode.slice(-900)}
-                <span className="ml-0.5 inline-block h-2.5 w-1.5 animate-pulse bg-cyan-300 align-middle"></span>
-              </pre>
-            </div>
-          ) : null}
-        </div>
-        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-          {rest.map((o) => (
-            <div key={o.style} className="overflow-hidden rounded-xl border border-white/[0.06] bg-[#101218] opacity-50 saturate-50 transition-all duration-500">
-              <div className="flex items-center justify-between gap-2 border-b border-white/[0.05] px-2.5 py-1.5">
-                <div className="flex min-w-0 items-center gap-1.5">
-                  <span className={"h-1 w-1 shrink-0 rounded-full " + STYLE_META[o.style].dot}></span>
-                  <span className="truncate font-mono text-[8.5px] tracking-[0.15em] text-zinc-500">{STYLE_META[o.style].label}</span>
-                </div>
-                <span className="shrink-0 font-mono text-[8px] tracking-[0.15em] text-zinc-600">PITCH · NOT SELECTED</span>
-              </div>
-              <div className="relative h-[110px] overflow-hidden bg-[#0c0d12]">
-                <div className="pointer-events-none h-[220px] w-[200%] origin-top-left scale-50">
-                  <iframe sandbox="" srcDoc={o.html} title={o.style + "-pitch"} className="h-full w-full border-0 bg-white"></iframe>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+        ) : null}
       </div>
     );
   }
@@ -189,7 +218,7 @@ export default function DesignPreviewGrid({
                   <span className="font-mono text-[11px]">generation failed</span>
                 </div>
               ) : (
-                <iframe sandbox="" srcDoc={o.html} title={o.style} className="h-full w-full animate-fade-in border-0 bg-white"></iframe>
+                <ScaledFrame html={o.html} title={o.style} />
               )}
             </div>
           </div>

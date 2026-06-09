@@ -1,5 +1,7 @@
 // Thin LLM provider adapter — SERVER-SIDE ONLY (Constitution VI: keys never reach the client).
-// Default: OpenAI (OPENAI_API_KEY). If ANTHROPIC_API_KEY is set, Anthropic is used instead.
+// Routing: models starting with "claude" go to Anthropic, everything else to OpenAI.
+// With ANTHROPIC_API_KEY set, the BUILD uses Claude (best HTML quality — the wow moment);
+// pitches stay on the fast OpenAI model so 4 run in parallel quickly.
 import OpenAI from "openai";
 
 export type LlmParams = {
@@ -9,14 +11,18 @@ export type LlmParams = {
   signal?: AbortSignal;
 };
 
-const PITCH_MODEL = process.env.LLM_MODEL_PITCH || "gpt-4o-mini";
-const BUILD_MODEL = process.env.LLM_MODEL_BUILD || "gpt-4o";
+const hasAnthropic = () => !!process.env.ANTHROPIC_API_KEY;
 
-export const models = { pitch: PITCH_MODEL, build: BUILD_MODEL };
+export const models = {
+  get pitch() {
+    return process.env.LLM_MODEL_PITCH || "gpt-4o-mini";
+  },
+  get build() {
+    return process.env.LLM_MODEL_BUILD || (hasAnthropic() ? "claude-sonnet-4-6" : "gpt-4o");
+  },
+};
 
-function provider(): "anthropic" | "openai" {
-  return process.env.ANTHROPIC_API_KEY ? "anthropic" : "openai";
-}
+const isClaude = (model: string) => model.startsWith("claude");
 
 let _openai: OpenAI | null = null;
 function openai(): OpenAI {
@@ -24,20 +30,21 @@ function openai(): OpenAI {
   return _openai;
 }
 
-/** Non-streaming completion (pitches). */
+const ANTHROPIC_HEADERS = () => ({
+  "content-type": "application/json",
+  "x-api-key": process.env.ANTHROPIC_API_KEY!,
+  "anthropic-version": "2023-06-01",
+});
+
+/** Non-streaming completion. */
 export async function complete(model: string, p: LlmParams): Promise<string> {
-  if (provider() === "anthropic") {
-    // Minimal Anthropic REST call (no extra dep); used only when ANTHROPIC_API_KEY is set.
+  if (isClaude(model)) {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       signal: p.signal,
-      headers: {
-        "content-type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
-        "anthropic-version": "2023-06-01",
-      },
+      headers: ANTHROPIC_HEADERS(),
       body: JSON.stringify({
-        model: process.env.LLM_MODEL_ANTHROPIC || "claude-sonnet-4-6",
+        model,
         max_tokens: p.maxTokens,
         system: p.system,
         messages: [{ role: "user", content: p.user }],
@@ -61,11 +68,43 @@ export async function complete(model: string, p: LlmParams): Promise<string> {
   return r.choices[0]?.message?.content ?? "";
 }
 
-/** Streaming completion (the full build + orchestrator reasoning). Yields text chunks. */
+/** Streaming completion. Yields text chunks (real SSE streaming on both providers). */
 export async function* stream(model: string, p: LlmParams): AsyncGenerator<string> {
-  if (provider() === "anthropic") {
-    // Fall back to non-streaming for the minimal Anthropic path; yield once.
-    yield await complete(model, p);
+  if (isClaude(model)) {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      signal: p.signal,
+      headers: ANTHROPIC_HEADERS(),
+      body: JSON.stringify({
+        model,
+        max_tokens: p.maxTokens,
+        stream: true,
+        system: p.system,
+        messages: [{ role: "user", content: p.user }],
+      }),
+    });
+    if (!res.ok || !res.body) throw new Error(`anthropic ${res.status}`);
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const json = line.slice(5).trim();
+        if (!json || json === "[DONE]") continue;
+        try {
+          const ev = JSON.parse(json) as { type?: string; delta?: { type?: string; text?: string } };
+          if (ev.type === "content_block_delta" && ev.delta?.text) yield ev.delta.text;
+        } catch {
+          /* partial frame — ignored */
+        }
+      }
+    }
     return;
   }
   const s = await openai().chat.completions.create(
