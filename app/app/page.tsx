@@ -17,7 +17,7 @@ import { UGLY_PAGE } from "@/lib/uglyPage";
 import { guardHtml } from "@/lib/htmlGuard";
 import type { Agent, DesignOutput, ExplorerEvent, Payment, Style } from "@/lib/types";
 
-type Phase = "idle" | "pitching" | "evaluating" | "building" | "done";
+type Phase = "idle" | "pitching" | "evaluating" | "building" | "awaiting" | "paying" | "rating" | "done";
 
 const SENTINEL = "@@RESULT@@";
 
@@ -44,7 +44,10 @@ const PHASE_HEADLINE: Record<Phase, string> = {
   pitching: "Brief posted — agents are submitting quick style pitches",
   evaluating: "Orchestrator is judging pitches + track records",
   building: "Agent hired — full build streaming live",
-  done: "Build delivered",
+  awaiting: "HTTP 402 — build delivered, payment required",
+  paying: "Settling USDC on-chain via x402",
+  rating: "Writing reputation on-chain (ERC-8004)",
+  done: "Job complete — paid + rated on-chain",
 };
 
 export default function Home() {
@@ -57,8 +60,9 @@ export default function Home() {
   const [reasoning, setReasoning] = useState("");
   const [liveCode, setLiveCode] = useState("");
   const [buildElapsed, setBuildElapsed] = useState(0);
-  const [payment] = useState<Payment | undefined>(); // T3
-  const [events] = useState<ExplorerEvent[]>([]); // T4/T5: real txs
+  const [payment, setPayment] = useState<Payment | undefined>();
+  const [events, setEvents] = useState<ExplorerEvent[]>([]);
+  const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
   const runId = useRef(0);
 
   // Idle market rail: real agents + on-chain reputation, read at mount (T2)
@@ -131,7 +135,57 @@ export default function Home() {
       paint({ html: styleById(style).fallbackHtml, status: "fallback", elapsedMs: Date.now() - t0 });
     }
     setLiveCode("");
-    setPhase("done");
+  }, []);
+
+  // T3: accept the work -> pay the hired agent on-chain (x402-first, fallback surfaced)
+  const runPayment = useCallback(async (payoutAddress: string, id: number) => {
+    setPhase("awaiting"); // HTTP 402 — orchestrator reviews the delivered build
+    await new Promise((r) => setTimeout(r, 2600));
+    if (id !== runId.current) return;
+    setPhase("paying");
+    setPayment({ path: "x402", txHash: "", explorerUrl: "", status: "pending", amountUsd: 0.01 });
+    try {
+      const res = await fetch("/api/pay", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ payoutAddress, amountUsd: 0.01 }),
+      });
+      if (!res.ok) throw new Error("pay failed");
+      const p: Payment = await res.json();
+      if (id !== runId.current) return;
+      setPayment(p);
+      setEvents((prev) => [
+        { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
+        ...prev,
+      ]);
+    } catch {
+      if (id !== runId.current) return;
+      setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
+    }
+  }, []);
+
+  // T4: write the rating on-chain (from the CLIENT EOA, never the owner), read it back
+  const runRating = useCallback(async (agent: Agent, id: number) => {
+    setPhase("rating");
+    const previousScore = agent.reputation.score;
+    try {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490 }),
+      });
+      if (!res.ok) throw new Error("feedback failed");
+      const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
+      if (id !== runId.current) return;
+      setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore });
+      setCandidates((prev) => prev.map((a) => (a.agentId === agent.agentId ? { ...a, reputation: d.reputation } : a)));
+      setEvents((prev) => [
+        { label: `Reputation · ${agent.name} ★${d.reputation.score.toFixed(2)} (job #${d.reputation.count})`, txHash: d.txHash, explorerUrl: d.explorerUrl, ts: Date.now() },
+        ...prev,
+      ]);
+    } catch {
+      /* rating failure leaves payment proof intact; demo continues */
+    }
   }, []);
 
   const run = useCallback(async () => {
@@ -143,6 +197,8 @@ export default function Home() {
     setLiveCode("");
     setBuildElapsed(0);
     setReasoning("");
+    setPayment(undefined);
+    setRating(undefined); // events intentionally persist — the explorer feed grows across jobs
     setPhase("pitching");
     setOutputs(STYLES.map((s) => ({ style: s.id, html: "", status: "loading" as const })));
 
@@ -210,6 +266,12 @@ export default function Home() {
       if (id !== runId.current) return;
 
       await runBuild(winnerStyle, briefText, id);
+      if (id !== runId.current) return;
+      await runPayment(winner?.payoutAddress ?? "", id); // T3
+      if (id !== runId.current) return;
+      if (winner) await runRating(winner, id); // T4
+      if (id !== runId.current) return;
+      setPhase("done");
     } catch {
       // orchestration failed (chain/RPC down): salvage the demo with a local pick
       if (id !== runId.current) return;
@@ -218,8 +280,10 @@ export default function Home() {
       setReasoning("▸ Orchestrator degraded (registry unreachable) — proceeding with local selection.");
       setHiredStyle(fallbackStyle);
       await runBuild(fallbackStyle, briefText, id);
+      if (id !== runId.current) return;
+      setPhase("done");
     }
-  }, [brief, runBuild]);
+  }, [brief, runBuild, runPayment, runRating]);
 
   const live = phase !== "idle" && phase !== "done";
 
@@ -285,19 +349,19 @@ export default function Home() {
         <div>
           <div className="mb-2.5 flex items-center justify-between px-1">
             <span className="font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">
-              {phase === "idle" ? "THE PROBLEM" : phase === "building" || phase === "done" ? "FULL BUILD" : "STYLE PITCHES"}
+              {phase === "idle" ? "THE PROBLEM" : phase === "pitching" || phase === "evaluating" ? "STYLE PITCHES" : "FULL BUILD"}
             </span>
             {phase === "pitching" || phase === "evaluating" ? (
               <span className="font-mono text-[10px] text-zinc-500">quick spec samples — not full builds</span>
-            ) : phase === "building" || phase === "done" ? (
+            ) : phase !== "idle" ? (
               <span className="font-mono text-[10px] text-zinc-500">sandboxed live render</span>
             ) : null}
           </div>
           <DesignPreviewGrid
             outputs={outputs}
             highlightStyle={hiredStyle}
-            featuredStyle={phase === "building" || phase === "done" ? hiredStyle : undefined}
-            outputKind={phase === "building" || phase === "done" ? "build" : "pitch"}
+            featuredStyle={phase === "pitching" || phase === "evaluating" || phase === "idle" ? undefined : hiredStyle}
+            outputKind={phase === "pitching" || phase === "evaluating" ? "pitch" : "build"}
             idleHtml={UGLY_PAGE}
             liveCode={liveCode || undefined}
             buildElapsedMs={phase === "building" ? buildElapsed : undefined}
@@ -307,8 +371,10 @@ export default function Home() {
         {/* right: the proof rail */}
         <div className="flex flex-col gap-5">
           <div className="-mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">ON-CHAIN PROOF</div>
-          <PaymentPanel payment={payment} />
-          {hiredAgent ? <ReputationPanel agent={hiredAgent} /> : null}
+          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} />
+          {hiredAgent ? (
+            <ReputationPanel agent={hiredAgent} previousScore={rating?.previousScore} txHash={rating?.txHash} explorerUrl={rating?.explorerUrl} />
+          ) : null}
           <ExplorerPanel events={events} />
         </div>
       </main>

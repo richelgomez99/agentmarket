@@ -76,12 +76,12 @@ streams; selection matches stated per-style criteria.
 shows the path + real explorer link. **Independent test**: accept a design → real payment tx;
 path labeled; force x402 fail → fallback settles + labeled.
 
-- [ ] T030 [US3] `app/lib/x402.ts`: x402 client/settle (facilitator, eip155:10143, USDC, exact scheme) from CLIENT EOA; detect settle failure/unreachable
-- [ ] T031 [US3] Transfer fallback in `app/lib/x402.ts` (or `lib/chain.ts`): viem USDC `transfer` (or MON transfer) C→O on x402 failure
-- [ ] T032 [US3] `POST /api/pay` in `app/app/api/pay/route.ts`: x402 first → fallback; return {path, txHash, explorerUrl, status} with the real settled path (Constitution IV; per `contracts/api-routes.md`)
-- [ ] T033 [P] [US3] `PaymentPanel` in `app/components/PaymentPanel.tsx`: amount, path used (x402 vs transfer), status, clickable real explorer link
-- [ ] T034 [US3] Wire `app/app/page.tsx`: on accept → `/api/pay` → PaymentPanel; verify forced-x402-fail path labels fallback correctly (SC-005)
-- [ ] **T035 — T3 CHECKPOINT**: build + dev-clean; smoke (real payment tx on explorer; path labeled; fallback works); `/code-review`; git commit
+- [x] T030 [US3] `app/lib/x402.ts`: x402 client/settle (facilitator, eip155:10143, USDC, exact scheme) from CLIENT EOA; detect settle failure/unreachable
+- [x] T031 [US3] Transfer fallback in `app/lib/x402.ts` (or `lib/chain.ts`): viem USDC `transfer` (or MON transfer) C→O on x402 failure
+- [x] T032 [US3] `POST /api/pay` in `app/app/api/pay/route.ts`: x402 first → fallback; return {path, txHash, explorerUrl, status} with the real settled path (Constitution IV; per `contracts/api-routes.md`)
+- [x] T033 [P] [US3] `PaymentPanel` in `app/components/PaymentPanel.tsx`: amount, path used (x402 vs transfer), status, clickable real explorer link
+- [x] T034 [US3] Wire `app/app/page.tsx`: on accept → `/api/pay` → PaymentPanel; verify forced-x402-fail path labels fallback correctly (SC-005)
+- [x] **T035 — T3 CHECKPOINT**: build + dev-clean; smoke (real payment tx on explorer; path labeled; fallback works); `/code-review`; git commit
 
 ---
 
@@ -91,11 +91,11 @@ path labeled; force x402 fail → fallback settles + labeled.
 tick-up. **Independent test**: after payment → real feedback tx by non-owner caller; reputation
 updates; clickable explorer link.
 
-- [ ] T036 [US4] `POST /api/feedback` in `app/app/api/feedback/route.ts`: `giveFeedback(agentId,100,0,tag1=style,tag2="agentmarket","","",0x0)` from CLIENT EOA (≠ OWNER — else reverts); then re-read `getSummary(agentId,[CLIENT_EOA],style,"")`; return {txHash, explorerUrl, reputation}
-- [ ] T037 [P] [US4] `ReputationPanel` in `app/components/ReputationPanel.tsx`: animate score previous→new, "job #N" increment, clickable real explorer link
-- [ ] T038 [US4] Wire `app/app/page.tsx`: after pay → `/api/feedback` → ReputationPanel reflects updated count+score (SC-006)
-- [ ] T039 [US4] Verify anti-self-feedback: confirm the write succeeds from C and would revert from O (sanity check, not shipped)
-- [ ] **T040 — T4 CHECKPOINT**: build + dev-clean; smoke (real feedback tx by non-owner; reputation ticks up; explorer link); `/code-review`; git commit
+- [x] T036 [US4] `POST /api/feedback` in `app/app/api/feedback/route.ts`: `giveFeedback(agentId,100,0,tag1=style,tag2="agentmarket","","",0x0)` from CLIENT EOA (≠ OWNER — else reverts); then re-read `getSummary(agentId,[CLIENT_EOA],style,"")`; return {txHash, explorerUrl, reputation}
+- [x] T037 [P] [US4] `ReputationPanel` in `app/components/ReputationPanel.tsx`: animate score previous→new, "job #N" increment, clickable real explorer link
+- [x] T038 [US4] Wire `app/app/page.tsx`: after pay → `/api/feedback` → ReputationPanel reflects updated count+score (SC-006)
+- [x] T039 [US4] Verify anti-self-feedback: confirm the write succeeds from C and would revert from O (sanity check, not shipped)
+- [x] **T040 — T4 CHECKPOINT**: build + dev-clean; smoke (real feedback tx by non-owner; reputation ticks up; explorer link); `/code-review`; git commit
 
 ---
 
@@ -104,8 +104,8 @@ updates; clickable explorer link.
 **Goal**: legible live proof + safety net. **Independent test**: explorer panel updates live
 with real hashes; reputation animates; backup recording exists; public repo + txs reachable.
 
-- [ ] T041 [US5] `ExplorerPanel` in `app/components/ExplorerPanel.tsx`: live feed of REAL payment+feedback txs with clickable real hashes (the credibility beat — unlike mock feeds)
-- [ ] T042 [US5] Wire live updates into `app/app/page.tsx` so payment/feedback txs appear without manual refresh (SC-001/SC-007 legibility)
+- [x] T041 [US5] `ExplorerPanel` in `app/components/ExplorerPanel.tsx`: live feed of REAL payment+feedback txs with clickable real hashes (the credibility beat — unlike mock feeds)
+- [x] T042 [US5] Wire live updates into `app/app/page.tsx` so payment/feedback txs appear without manual refresh (SC-001/SC-007 legibility)
 - [ ] T043 [P] [US5] Demo polish pass: big legible hire/pay/rate beats, reputation animation timing; run `/design-review` (legibility > beauty). **Honest-claims copy check (FR-021)**: UI/pitch copy claims only "job done + paid for" and "portable on-chain-earned reputation"; NO claims of design-quality proof, populated network, or on-chain Sybil-resistance; reputation labeled as our own aggregation.
 - [ ] T044 [P] [US5] Record a backup screen capture of the full working flow (stage safety net, SC-008)
 - [ ] T045 [P] [US5] Push to public GitHub; confirm contracts/txs reachable on a Monad explorer (Constitution workflow)
