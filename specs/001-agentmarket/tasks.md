@@ -60,13 +60,13 @@ for the brief (FR-009a), streams reasoning, then the hired agent generates.
 **Independent test**: submit a brief → candidates + reputations read from chain; reasoning
 streams; selection matches stated per-style criteria.
 
-- [ ] T023 [US2] `app/lib/chain.ts`: viem clients for Monad testnet + pinned ERC-8004 ABIs/addresses from `contracts/erc8004-abis.md` (do not refetch)
-- [ ] T024 [US2] `app/lib/registry.ts`: read registered agents (AGENT_IDS) + agent cards; `getSummary(agentId,[CLIENT_EOA],style,"")` per-style reputation (non-empty clientAddresses); aggregate to {count, score}
-- [ ] T025 [US2] `POST /api/orchestrate` in `app/app/api/orchestrate/route.ts`, two stages per contract: "open" (read agents + per-style getSummary, infer style, stream intro, return candidates) and "evaluate" (score pitch fit + track records, stream judgment, return {criteria, selectedAgentId}); deterministic tie-break (FR-009a)
-- [ ] T026 [P] [US2] Integrate `AgentCandidateCard` + `OrchestratorReasoning` from the design handoff into `app/app/components/` (per-style ★score, HIRED state, streaming reasoning + hire banner)
-- [ ] T027 [P] [US2] (merged into T026 — design handoff provides both components)
-- [ ] T028 [US2] Wire `app/app/page.tsx`: submit → orchestrate "open" (candidates+style) → 4 pitches → orchestrate "evaluate" (stream judgment → HIRE moment) → winner's build-mode stream (replaces T1's local auto-pick stub)
-- [ ] **T029 — T2 CHECKPOINT**: build + dev-clean; smoke (candidates+reputation read from chain; selection matches criteria, SC-003/SC-004); `/code-review`; git commit
+- [x] T023 [US2] `app/lib/chain.ts`: viem clients for Monad testnet + pinned ERC-8004 ABIs/addresses from `contracts/erc8004-abis.md` (do not refetch)
+- [x] T024 [US2] `app/lib/registry.ts`: read registered agents (AGENT_IDS) + agent cards; `getSummary(agentId,[CLIENT_EOA],style,"")` per-style reputation (non-empty clientAddresses); aggregate to {count, score}
+- [x] T025 [US2] `POST /api/orchestrate` in `app/app/api/orchestrate/route.ts`, two stages per contract: "open" (read agents + per-style getSummary, infer style, stream intro, return candidates) and "evaluate" (score pitch fit + track records, stream judgment, return {criteria, selectedAgentId}); deterministic tie-break (FR-009a)
+- [x] T026 [P] [US2] Integrate `AgentCandidateCard` + `OrchestratorReasoning` from the design handoff into `app/app/components/` (per-style ★score, HIRED state, streaming reasoning + hire banner)
+- [x] T027 [P] [US2] (merged into T026 — design handoff provides both components)
+- [x] T028 [US2] Wire `app/app/page.tsx`: submit → orchestrate "open" (candidates+style) → 4 pitches → orchestrate "evaluate" (stream judgment → HIRE moment) → winner's build-mode stream (replaces T1's local auto-pick stub)
+- [x] **T029 — T2 CHECKPOINT**: build + dev-clean; smoke (candidates+reputation read from chain; selection matches criteria, SC-003/SC-004); `/code-review`; git commit
 
 ---
 
