@@ -44,11 +44,11 @@ its slot shows a styled fallback (no blank). Zero chain dependency.
 
 - [ ] T015 [P] [US1] Provider adapter in `app/lib/llm.ts` (OpenAI default; uses Anthropic if `ANTHROPIC_API_KEY` set); server-side only
 - [ ] T016 [P] [US1] HTML guard in `app/lib/htmlGuard.ts` (strip markdown fences, validate complete self-contained doc, reject external URLs/scripts)
-- [ ] T017 [US1] `POST /api/generate` route in `app/app/api/generate/route.ts`: one style → styled HTML via llm.ts + styles.ts; ~25s timeout; on fail/invalid → fallback HTML, `status:"fallback"`; never error-blank (per `contracts/api-routes.md`)
-- [ ] T018 [P] [US1] `BriefInput` component in `app/components/BriefInput.tsx` (value/onChange/onSubmit/disabled)
-- [ ] T019 [P] [US1] `DesignPreviewGrid` in `app/components/DesignPreviewGrid.tsx`: per-style `<iframe sandbox srcDoc>` WITHOUT `allow-same-origin`; skeleton on loading; render fallback; never blank (Constitution V)
-- [ ] T020 [US1] Wire `app/app/page.tsx`: on submit, fire 4 `/api/generate` calls concurrently and stream each result into its preview slot
-- [ ] T021 [US1] Verify hard-fail path: simulate a timeout/throw for one style → fallback renders within bound; others unaffected (SC-002)
+- [ ] T017 [US1] `POST /api/generate` route in `app/app/api/generate/route.ts` with `mode: "pitch"|"build"`: pitch = small/fast spec sample (JSON); build = full page **streamed** (chunked HTML for progressive iframe render + code strip); timeouts ~15s/~45s; on fail/invalid → fallback HTML `status:"fallback"`; never error-blank (per `contracts/api-routes.md`)
+- [ ] T018 [P] [US1] Integrate design-handoff components (from `specs/001-agentmarket/design/project/AgentMarket.tsx`): split `BriefInput`, `DesignPreviewGrid` (+ shared helpers) into `app/app/components/`, swap PREVIEW SHIMs for real react/lucide-react imports
+- [ ] T019 [US1] Elevate the build moment in `DesignPreviewGrid`/page: progressive `srcDoc` re-render (~400ms) while build streams, live code strip beside the featured build, build elapsed timer; idle state shows the "ugly before" page (not empty placeholders)
+- [ ] T020 [US1] Wire `app/app/page.tsx` (replace DemoHarness mocks): submit → 4 pitch calls concurrently → pitch grid fills live → (T1 stub: auto-pick style locally) → build-mode stream into featured render
+- [ ] T021 [US1] Verify hard-fail paths: forced pitch failure → styled fallback in slot; forced build-stream failure → fallback full page; others unaffected (SC-002)
 - [ ] **T022 — T1 CHECKPOINT**: build + dev-clean; `/browse`+`/qa` smoke (4 distinct previews render; forced-fail shows fallback) passes; `/code-review`; git commit. **This is a complete demo.**
 
 ---
@@ -62,10 +62,10 @@ streams; selection matches stated per-style criteria.
 
 - [ ] T023 [US2] `app/lib/chain.ts`: viem clients for Monad testnet + pinned ERC-8004 ABIs/addresses from `contracts/erc8004-abis.md` (do not refetch)
 - [ ] T024 [US2] `app/lib/registry.ts`: read registered agents (AGENT_IDS) + agent cards; `getSummary(agentId,[CLIENT_EOA],style,"")` per-style reputation (non-empty clientAddresses); aggregate to {count, score}
-- [ ] T025 [US2] `POST /api/orchestrate` in `app/app/api/orchestrate/route.ts`: infer brief's target style, read per-style reputation, stream hire reasoning, return {candidates, criteria, selectedAgentId, inferredStyle}; deterministic tie-break (FR-009a)
-- [ ] T026 [P] [US2] `AgentCandidateCard` in `app/components/AgentCandidateCard.tsx` (name, style, per-style ★score + "N paid jobs", HIRED state)
-- [ ] T027 [P] [US2] `OrchestratorReasoning` in `app/components/OrchestratorReasoning.tsx` (streams reasoning; big legible final hire line)
-- [ ] T028 [US2] Wire `app/app/page.tsx`: submit → `/api/orchestrate` (stream into reasoning + fill candidate cards) → selected agent drives the `/api/generate` step from T1
+- [ ] T025 [US2] `POST /api/orchestrate` in `app/app/api/orchestrate/route.ts`, two stages per contract: "open" (read agents + per-style getSummary, infer style, stream intro, return candidates) and "evaluate" (score pitch fit + track records, stream judgment, return {criteria, selectedAgentId}); deterministic tie-break (FR-009a)
+- [ ] T026 [P] [US2] Integrate `AgentCandidateCard` + `OrchestratorReasoning` from the design handoff into `app/app/components/` (per-style ★score, HIRED state, streaming reasoning + hire banner)
+- [ ] T027 [P] [US2] (merged into T026 — design handoff provides both components)
+- [ ] T028 [US2] Wire `app/app/page.tsx`: submit → orchestrate "open" (candidates+style) → 4 pitches → orchestrate "evaluate" (stream judgment → HIRE moment) → winner's build-mode stream (replaces T1's local auto-pick stub)
 - [ ] **T029 — T2 CHECKPOINT**: build + dev-clean; smoke (candidates+reputation read from chain; selection matches criteria, SC-003/SC-004); `/code-review`; git commit
 
 ---

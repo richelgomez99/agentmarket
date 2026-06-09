@@ -30,6 +30,13 @@ on-chain, hires the best by reputation, they generate UI designs live, get paid 
 - Q: Wallet topology / can one wallet own agents and also pay+rate them? → A: No — anti-self-
   feedback reverts. Use two distinct addresses (both yours): Owner (O) owns agents + is payout;
   Client (C) pays + rates. Payment flows C→O.
+- Q: Generation flow — do all agents fully generate up front? → A: No (design iteration
+  2026-06-09): all agents submit quick, cheap **style pitches** (spec samples, not full builds);
+  the orchestrator **evaluates pitch fit + per-style on-chain track record**, hires ONE winner;
+  ONLY the winner produces the **full build**, which MUST stream visibly into its preview
+  (the build is the visual centerpiece). Idle state shows the "ugly before" page so the arc is
+  ugly → pitches → hire → built-before-your-eyes. Design handoff bundle:
+  `specs/001-agentmarket/design/` (components match the UI prop contracts verbatim).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -211,6 +218,9 @@ are reachable on a public explorer.
 - **FR-001**: System MUST accept a free-text design brief from the user.
 - **FR-002**: System MUST produce, from a single brief, multiple distinct specialist design
   outputs covering at least the styles: dark-mode premium, glassmorphism, brutalist, playful.
+  These are quick **style pitches** (cheap spec samples, clearly labeled as such); the **full
+  build** is produced only by the hired agent (FR-010) and MUST render progressively
+  (streaming) so the audience watches the page assemble.
 - **FR-003**: Each design output MUST be a single self-contained styled document generated from
   the brief; the system MUST NOT ingest, parse, or transform an arbitrary user-supplied codebase.
 - **FR-004**: System MUST render each output in an isolated preview that cannot access the
@@ -230,10 +240,12 @@ are reachable on a public explorer.
 - **FR-009**: System MUST select agent(s) to hire based on reputation and MUST display the
   orchestrator's selection reasoning to the user as it proceeds.
 - **FR-009a**: System MUST read and use **per-style (specialty-specific) reputation** — the
-  orchestrator infers the brief's target style and hires the agent with the best track record
-  *for that style*, surfacing that per-style score in its reasoning and on the candidate card.
-- **FR-010**: System MUST connect the orchestrator's selection to the design-generation step so
-  the selected agent(s) produce the shown output.
+  orchestrator infers the brief's target style and hires the agent with the best combination of
+  **pitch fit and track record for that style**, surfacing the per-style score in its reasoning
+  and on the candidate card.
+- **FR-010**: System MUST connect the orchestrator's selection to the build step: ONLY the
+  hired agent produces the full build shown as the featured output; non-selected pitches are
+  visibly de-emphasized ("pitch · not selected").
 
 **Payment (T3)**
 

@@ -3,26 +3,31 @@
 All LLM + chain-write logic lives here (Constitution VI: keys server-side only). Routes stream
 where it helps the demo's legibility.
 
-## POST /api/generate  (T1)
-Generate one style's design from the brief. Called 3–4× concurrently (one per style).
-- **Request**: `{ brief: string, style: "dark-mode-premium"|"glassmorphism"|"brutalist"|"playful" }`
-- **Response (stream or JSON)**: `{ style, html: string, status: "generated"|"fallback", elapsedMs }`
-- **Behavior**: OpenAI (via `lib/llm.ts`) with the style's system prompt from `lib/styles.ts`.
-  Enforce: complete `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences.
-  Run through `lib/htmlGuard.ts` (strip fences, validate self-contained). Per-call timeout
-  (~25s). On timeout/failure/invalid → return the per-style hard-coded fallback HTML with
-  `status:"fallback"`. NEVER return an error-blank (SC-002).
+## POST /api/generate  (T1) — pitch | build modes
+Generate one agent's output from the brief. Pitch mode is called 4× concurrently; build mode
+once, by the hired agent only.
+- **Request**: `{ brief: string, style: Style, mode: "pitch" | "build" }`
+- **Pitch mode**: small/fast spec sample (hero-section scale; lower max_tokens, ~15s timeout).
+  Response JSON: `{ style, html, status: "generated"|"fallback", elapsedMs }`.
+- **Build mode (THE centerpiece)**: full-page generation, **streamed** — the route returns a
+  text/event-stream (or chunked text) of raw HTML as it generates; the client progressively
+  re-renders the featured iframe's `srcDoc` (~every 400ms) so the page visibly assembles, and
+  feeds the live code strip. On completion, client runs `htmlGuard`; final frame replaces the
+  progressive render. ~45s timeout.
+- **Both**: OpenAI via `lib/llm.ts` + style system prompt from `lib/styles.ts`; enforce complete
+  `<!DOCTYPE html>`, inline `<style>`, no JS, no external URLs, no fences; on timeout/failure/
+  invalid → per-style fallback HTML with `status:"fallback"`. NEVER an error-blank (SC-002).
 
-## POST /api/orchestrate  (T2)
-Discover agents on-chain, read per-style reputation, pick the specialist, stream reasoning.
-- **Request**: `{ brief: string }`
-- **Response (stream)**: tokens of reasoning, then a final
-  `{ candidates: Agent[], criteria, selectedAgentId, inferredStyle }`
-  where `Agent = { agentId, name, style, payoutAddress, reputation: { count, score } }`.
-- **Behavior**: read registered agents from IdentityRegistry; for each, `getSummary(agentId,
-  [CLIENT_EOA], <style>, "")` for **per-style** reputation. LLM infers the brief's target style
-  and explains hiring the best specialist for it (specialty-matched). Deterministic tie-break:
-  higher count, then lower agentId. Selection MUST match stated criteria (SC-004).
+## POST /api/orchestrate  (T2) — two stages
+- **Stage "open"** — `{ brief, stage: "open" }`: read registered agents from IdentityRegistry;
+  for each, `getSummary(agentId, [CLIENT_EOA], <style>, "")` per-style reputation; LLM infers
+  the brief's target style. Streams short "posting brief / requesting pitches" reasoning, then
+  final `{ candidates: Agent[], inferredStyle }`. Client then fires the 4 pitch generations.
+- **Stage "evaluate"** — `{ brief, stage: "evaluate", pitches: { style, status, elapsedMs }[] }`:
+  LLM scores pitch fit against the brief AND cross-checks per-style on-chain track records,
+  streams its judgment, then final `{ criteria, selectedAgentId }`. Deterministic tie-break:
+  higher per-style score, then higher count, then lower agentId. Selection MUST match stated
+  criteria (SC-004). Client then fires the build-mode generation for the winner.
 
 ## POST /api/pay  (T3)
 Pay the selected agent. x402 first, transfer fallback.
