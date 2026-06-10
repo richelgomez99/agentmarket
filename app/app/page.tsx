@@ -118,6 +118,38 @@ export default function Home() {
     setComms((prev) => [...prev, { who, name, text, accent: style ? styleById(style).accent : undefined }]);
   }, []);
 
+  // LLM-generated in-character chatter (no two runs read the same); canned line is the fallback
+  const sayLive = useCallback(
+    async (
+      name: string,
+      style: Style,
+      event: string,
+      fallback: string,
+      opts?: { context?: string; mustInclude?: string; sync?: boolean }
+    ) => {
+      const fire = async () => {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 6000);
+          const res = await fetch("/api/banter", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ style, event, context: opts?.context, mustInclude: opts?.mustInclude }),
+            signal: ctrl.signal,
+          });
+          clearTimeout(t);
+          const d = res.ok ? await res.json() : {};
+          say("agent", name, (d.text as string) || fallback, style);
+        } catch {
+          say("agent", name, fallback, style);
+        }
+      };
+      if (opts?.sync) await fire();
+      else void fire();
+    },
+    [say]
+  );
+
   // Idle market rail: real agents + on-chain reputation, read at mount
   useEffect(() => {
     fetch("/api/orchestrate")
@@ -157,31 +189,31 @@ export default function Home() {
       setTimeout(() => {
         setAppliedCount(i + 1);
         const s = STYLES[i];
-        if (s) say("agent", s.agentName, PERSONAS[s.id].apply, s.id);
+        if (s) void sayLive(s.agentName, s.id, "You just applied to a new design job and are reading the client's brief and brand kit.", PERSONAS[s.id].apply, { context: brief });
       }, ms)
     );
     return () => timers.forEach(clearTimeout);
-  }, [phase, say]);
+  }, [phase, say, sayLive, brief]);
 
   // the hired agent's visible QA pass: page walkthrough -> real responsive sweep -> final look
   const runInspection = useCallback(
     async (style: Style, id: number) => {
       setPhase("inspecting");
       const agentName = styleById(style).agentName;
-      say("agent", agentName, "Running my QA pass — walking the page: nav, hero, CTA hierarchy…", style);
+      void sayLive(agentName, style, "You are starting a QA walkthrough of the page you just built — checking nav, hero, hierarchy and spacing.", "Running my QA pass — walking the page: nav, hero, CTA hierarchy…", {});
       setInspect({ step: "scan", label: "WALKTHROUGH · HIERARCHY & SPACING" });
       await new Promise((r) => setTimeout(r, 6800));
       if (id !== runId.current) return;
-      say("agent", agentName, "Responsive sweep — re-rendering at 390px…", style);
+      void sayLive(agentName, style, "You are now testing your build at mobile width (390px) — the responsive sweep.", "Responsive sweep — re-rendering at 390px…", {});
       setInspect({ step: "mobile", label: "RESPONSIVE · 390PX VIEWPORT" });
       await new Promise((r) => setTimeout(r, 4500));
       if (id !== runId.current) return;
       setInspect({ step: "final", label: "FINAL LOOK" });
-      say("agent", agentName, "QA pass clean. Submitting for review.", style);
+      void sayLive(agentName, style, "Your QA pass came back clean. Submit the work for the client's review.", "QA pass clean. Submitting for review.", {});
       await new Promise((r) => setTimeout(r, 1800));
       setInspect(undefined);
     },
-    [say]
+    [say, sayLive]
   );
 
   const runBuild = useCallback(
@@ -217,7 +249,8 @@ export default function Home() {
           for (const m of MILESTONES) {
             if (!fired.has(m.key) && acc.includes(m.probe)) {
               fired.add(m.key);
-              say("agent", agentName, persona[m.key], style);
+              const variants = persona[m.key];
+              say("agent", agentName, variants[Math.floor(Math.random() * variants.length)], style);
             }
           }
           const now = Date.now();
@@ -238,7 +271,7 @@ export default function Home() {
           finalHtml = salvaged ?? styleById(style).fallbackHtml;
           paint({ html: finalHtml, status: salvaged ? "generated" : "fallback", elapsedMs: Date.now() - t0 });
         }
-        say("agent", agentName, persona.delivered(secs), style);
+        await sayLive(agentName, style, `You just delivered the finished build in ${secs} seconds. Hand it over for the client's review.`, persona.delivered(secs), { context: briefText, sync: true });
         setLiveCode("");
         return finalHtml;
       } catch {
@@ -249,7 +282,7 @@ export default function Home() {
         return fb;
       }
     },
-    [say]
+    [say, sayLive]
   );
 
   // T3: review -> revision round (operator-authorized) -> approval -> pay on-chain (x402-first)
@@ -276,11 +309,12 @@ export default function Home() {
           revisionsUsed++;
           if (revisionsUsed > included) {
             // ── beyond the operator-authorized set: a REAL extra fee settles first ──
-            say(
-              "agent",
+            await sayLive(
               agentName,
+              agentStyle,
+              "The client requested another revision, beyond what is included in your terms. Politely invoke your pricing.",
               `That's beyond my ${included} included revision${included > 1 ? "s" : ""} — additional edits are $0.01 each via x402. My operator pre-approved up to 3 total.`,
-              agentStyle
+              { mustInclude: `${included} included revision${included > 1 ? "s" : ""}; $0.01 each via x402`, sync: true }
             );
             await new Promise((res) => setTimeout(res, 1200));
             if (id !== runId.current) return;
@@ -298,17 +332,18 @@ export default function Home() {
                   { label: `Revision fee · $0.01 USDC → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
                   ...prev,
                 ]);
-                say("agent", agentName, `Fee received (${fee.path}). Revising now…`, agentStyle);
+                await sayLive(agentName, agentStyle, `The client just paid your $0.01 revision fee via ${fee.path}. Confirm and start revising.`, `Fee received (${fee.path}). Revising now…`, { sync: true });
               }
             } catch {
               /* fee failure: agent revises anyway — goodwill beats a stuck demo */
             }
           } else {
-            say(
-              "agent",
+            await sayLive(
               agentName,
+              agentStyle,
+              "The client requested a revision. Accept it cheerfully — it is covered by your included revisions — and say you are revising now.",
               `On it — covered: my operator authorized ${included} included revision${included > 1 ? "s" : ""} for this job. Revising now…`,
-              agentStyle
+              { mustInclude: `${included} included revision${included > 1 ? "s" : ""}`, sync: true }
             );
           }
           await new Promise((res) => setTimeout(res, 1200));
@@ -339,13 +374,13 @@ export default function Home() {
           { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
           ...prev,
         ]);
-        say("agent", agentName, PERSONAS[agentStyle].paid(p.path), agentStyle);
+        await sayLive(agentName, agentStyle, `The client just paid you $0.01 USDC for the job via ${p.path}, settled on-chain. React briefly, in character.`, PERSONAS[agentStyle].paid(p.path), { sync: true });
       } catch {
         if (id !== runId.current) return;
         setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
       }
     },
-    [say, runInspection, runBuild]
+    [say, sayLive, runInspection, runBuild]
   );
 
   // T4: write the rating on-chain (from the CLIENT EOA, never the owner), read it back
@@ -379,12 +414,12 @@ export default function Home() {
           "Orchestrator",
           `Rated ★4.9 — written to the ERC-8004 registry${dh && !/^0x0+$/.test(dh) ? `, with the deliverable's hash sealed in the record (${dh.slice(0, 10)}…). Provable delivery.` : "."}`
         );
-        say("agent", agent.name, PERSONAS[agent.style].rated(d.reputation.count), agent.style);
+        await sayLive(agent.name, agent.style, `Your on-chain reputation just updated: this is job #${d.reputation.count} on your permanent record. Sign off, in character.`, PERSONAS[agent.style].rated(d.reputation.count), { mustInclude: `job #${d.reputation.count}`, sync: true });
       } catch {
         /* rating failure leaves payment proof intact; demo continues */
       }
     },
-    [say]
+    [say, sayLive]
   );
 
   const run = useCallback(async () => {
@@ -439,7 +474,15 @@ export default function Home() {
           }
           pitchStatuses.push({ style: s.id, status, elapsedMs });
           if (id === runId.current)
-            say("agent", s.agentName, status === "fallback" ? PERSONAS[s.id].pitchFallback : PERSONAS[s.id].pitchIn, s.id);
+            void sayLive(
+              s.agentName,
+              s.id,
+              status === "fallback"
+                ? "Your pitch generation hiccuped, so you sent your trusted reference sample instead."
+                : `You just submitted your style pitch for this job${elapsedMs ? ` (took ${(elapsedMs / 1000).toFixed(0)}s)` : ""}.`,
+              status === "fallback" ? PERSONAS[s.id].pitchFallback : PERSONAS[s.id].pitchIn,
+              { context: briefText }
+            );
         })
       );
       if (id !== runId.current) return;
@@ -460,7 +503,7 @@ export default function Home() {
       setHiredStyle(winnerStyle);
       if (winner) {
         say("orchestrator", "Orchestrator", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
-        say("agent", winner.name, PERSONAS[winnerStyle].hireAck, winnerStyle);
+        await sayLive(winner.name, winnerStyle, "You just won the job — the client hired you over the other three agents. Acknowledge and say you are starting the full build.", PERSONAS[winnerStyle].hireAck, { context: briefText, sync: true });
       }
       await new Promise((r) => setTimeout(r, 1200));
       if (id !== runId.current) return;
@@ -485,7 +528,7 @@ export default function Home() {
       setHiredStyle(fallbackStyle);
       if (winner) {
         say("orchestrator", "Orchestrator", `Registry read hiccuped — proceeding directly. @${winner.name}, the ${fallbackStyle} job is yours.`);
-        say("agent", winner.name, PERSONAS[fallbackStyle].hireAck, fallbackStyle);
+        await sayLive(winner.name, fallbackStyle, "You just won the job. Acknowledge and start the full build.", PERSONAS[fallbackStyle].hireAck, { context: briefText, sync: true });
       }
       const finalHtml = await runBuild(fallbackStyle, briefText, id);
       if (id !== runId.current) return;
@@ -497,7 +540,7 @@ export default function Home() {
       }
       setPhase("done");
     }
-  }, [brief, candidates, runBuild, runPayment, runRating, say]);
+  }, [brief, candidates, runBuild, runPayment, runRating, say, sayLive]);
 
   // keep the latest run() reachable from the autorun effect
   useEffect(() => {
