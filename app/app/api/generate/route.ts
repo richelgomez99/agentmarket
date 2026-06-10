@@ -7,10 +7,10 @@ import { styleById } from "@/lib/styles";
 import type { Style } from "@/lib/types";
 
 export const runtime = "nodejs";
-export const maxDuration = 90;
+export const maxDuration = 150;
 
 const PITCH_TIMEOUT_MS = 25_000; // prod cold-start headroom
-const BUILD_TIMEOUT_MS = 58_000;
+const BUILD_TIMEOUT_MS = 120_000; // big briefs run long; the demo-typical build stays ~40-55s
 
 const PITCH_INSTRUCTION = `This is a quick STYLE PITCH, not the full job: produce a compact
 hero-section-scale sample (one screen, no scrolling needed) that sells your style for this
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), BUILD_TIMEOUT_MS);
   const encoder = new TextEncoder();
+  let streamed = 0;
   const rs = new ReadableStream({
     async start(controller) {
       try {
@@ -81,14 +82,17 @@ keeping the same concept and structure, applying these reviewer notes precisely:
           : "";
         for await (const chunk of stream(models.build, {
           system: cfg.systemPrompt,
-          user: `${BUILD_INSTRUCTION}\n\nBrief: ${brief}${revisionBlock}`,
+          user: `${BUILD_INSTRUCTION}\n\nBrief: ${brief}${revisionBlock}\n\nFINAL REMINDER: one self-contained HTML file — inline <style> ONLY, NO JavaScript, NO external URLs/images/fonts (use CSS gradients and shapes for all visuals). Finish with </html>.`,
           maxTokens: 4600,
           signal: ctrl.signal,
         })) {
+          streamed += chunk.length;
           controller.enqueue(encoder.encode(chunk));
         }
       } catch {
-        controller.enqueue(encoder.encode("<!--FALLBACK-->" + cfg.fallbackHtml));
+        // only stamp the fallback if barely anything real streamed —
+        // otherwise let the client salvage the genuine work
+        if (streamed < 1500) controller.enqueue(encoder.encode("<!--FALLBACK-->" + cfg.fallbackHtml));
       } finally {
         clearTimeout(timer);
         controller.close();

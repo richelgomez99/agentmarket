@@ -28,9 +28,27 @@ export function validateHtml(html: string): string | null {
   return null;
 }
 
-/** Full pipeline: extract + validate. Returns {html} on success or {error}. */
+/** Sanitize instead of reject: strip scripts and external resource references so the REAL
+ * design renders (sandbox blocks scripts anyway; external assets would just 404 offline). */
+export function sanitizeHtml(html: string): string {
+  let s = html;
+  s = s.replace(/<script[\s\S]*?<\/script>/gi, "");
+  s = s.replace(/<script[^>]*\/?>/gi, "");
+  // drop tags that pull external assets entirely (broken boxes look worse than nothing)
+  s = s.replace(/<img[^>]*src\s*=\s*["']https?:\/\/[^>]*>/gi, "");
+  s = s.replace(/<link[^>]*href\s*=\s*["']https?:\/\/[^>]*>/gi, "");
+  s = s.replace(/<iframe[\s\S]*?<\/iframe>/gi, "");
+  // neutralize external CSS pulls + inline url(...) assets
+  s = s.replace(/@import\s+[^;]+;/gi, "");
+  s = s.replace(/url\(\s*["']?https?:\/\/[^)]*\)/gi, "none");
+  // strip remaining external src/href attributes (keeps the element, kills the fetch)
+  s = s.replace(/\s(?:src|href)\s*=\s*["']https?:\/\/[^"']*["']/gi, ' href="#"');
+  return s;
+}
+
+/** Full pipeline: extract + sanitize + validate. Returns {html} on success or {error}. */
 export function guardHtml(raw: string): { html: string; error?: undefined } | { error: string; html?: undefined } {
-  const html = extractHtml(raw);
+  const html = sanitizeHtml(extractHtml(raw));
   const err = validateHtml(html);
   return err ? { error: err } : { html };
 }
@@ -43,9 +61,7 @@ export function salvageHtml(raw: string): string | null {
   if (at < 0) return null;
   s = s.slice(at).trim();
   if (s.length < 1500) return null; // not enough real content to be worth salvaging
-  const low = s.toLowerCase();
-  if (low.includes("<script")) return null;
-  if (/(?:src|href)\s*=\s*["']https?:\/\//.test(low)) return null;
-  if (!low.includes("</html>")) s += "\n</body></html>";
+  s = sanitizeHtml(s);
+  if (!s.toLowerCase().includes("</html>")) s += "\n</body></html>";
   return s;
 }
