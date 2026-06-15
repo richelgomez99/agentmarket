@@ -16,6 +16,7 @@ export type StyleConfig = {
   label: string;
   agentName: string;
   accent: string;
+  includedRevisions: number; // set by the agent's operator in its config (varies per agent)
   systemPrompt: string;
   fallbackHtml: string;
 };
@@ -29,6 +30,7 @@ export const STYLES: StyleConfig[] = [
     label: "Dark-mode premium",
     agentName: "DarkModeAgent",
     accent: "#7c5cff",
+    includedRevisions: 2,
     systemPrompt: `You are DarkModeAgent, a specialist in premium dark-mode landing pages.
 DESIGN SYSTEM — follow precisely:
 • Palette: near-black canvas (#0a0a0c), one warm metallic accent (gold #c8a96a or champagne),
@@ -51,6 +53,7 @@ DESIGN SYSTEM — follow precisely:
     label: "Glassmorphism",
     agentName: "GlassAgent",
     accent: "#34d6ff",
+    includedRevisions: 3,
     systemPrompt: `You are GlassAgent, a specialist in glassmorphism landing pages.
 DESIGN SYSTEM — follow precisely:
 • Canvas: a deep, rich multi-stop gradient (e.g. #2a1a5e -> #1e3a8a -> #0e7490) with 2-3 soft
@@ -72,6 +75,7 @@ DESIGN SYSTEM — follow precisely:
     label: "Brutalist",
     agentName: "BrutalistAgent",
     accent: "#ffe500",
+    includedRevisions: 1,
     systemPrompt: `You are BrutalistAgent, a specialist in neo-brutalist landing pages.
 DESIGN SYSTEM — follow precisely:
 • Palette: bone (#f4f1ea) or acid (#ffe500) canvas, ink-black structure, ONE loud accent
@@ -93,6 +97,7 @@ DESIGN SYSTEM — follow precisely:
     label: "Playful",
     agentName: "PlayfulAgent",
     accent: "#ff5ea8",
+    includedRevisions: 2,
     systemPrompt: `You are PlayfulAgent, a specialist in playful, friendly landing pages.
 DESIGN SYSTEM — follow precisely:
 • Palette: warm cream canvas (#fff7e8), 3 saturated-but-soft brights (coral #ff8a5c,

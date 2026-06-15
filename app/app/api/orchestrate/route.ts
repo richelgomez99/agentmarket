@@ -86,41 +86,47 @@ export async function POST(req: NextRequest) {
     const finalRound = (round ?? 1) >= 2;
     return streamText(async function* () {
       if (!finalRound) {
+        // The HIRING AGENT's acceptance review: brief-fit, brand voice, and a CLAIMS AUDIT —
+        // flag any on-page claim (numbers, testimonials, pricing, awards) the brief never
+        // authorized. The most important finding becomes the revision request.
         let out = "";
         try {
           out = await complete(models.pitch, {
-            system: `You are the hiring orchestrator reviewing the FIRST delivery of a landing
-page (HTML below, built for the brief). Write exactly 3 lines, each starting with "▸ ":
-(1) one specific strength (name a real element: type, palette, hero, spacing),
-(2) one concrete, actionable REVISION REQUEST tied to the brand brief (a real visual change —
-spacing, contrast, a section, copy tone — phrased as an instruction),
-(3) "Requesting one revision before acceptance." Then on a new line output ONLY the revision
-instruction again prefixed with "NOTE: ". Be specific. No preamble.`,
-            user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 3500)}`,
-            maxTokens: 180,
+            system: `You are the HIRING AGENT — the buyer's brand guardian — running acceptance
+review on a delivered landing page (HTML below), checking it against the client brief.
+Audit three things, output EXACTLY these three lines:
+"BRIEF FIT — <pass/partial>: <6-10 word note>"
+"BRAND VOICE — <on/off>: <6-10 word note>"
+"CLAIMS AUDIT — <clean/flagged>: <if flagged, quote the exact unsupported claim from the page (a number, testimonial, price, rating, or award the brief never stated); if clean, say 'every claim traces to the brief'>"
+Then a 4th line: "▸ <one-sentence verdict>. Requesting one revision before acceptance."
+Then a new line: "NOTE: <the single most important fix as an instruction — prefer removing/rewording any unsupported claim from the CLAIMS AUDIT; otherwise the biggest brand-fit gap>."
+Be concrete and quote real text from the page. No preamble.`,
+            user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 4000)}`,
+            maxTokens: 240,
           });
         } catch {
-          out = `▸ The serif display and palette read premium immediately.\n▸ Give the hero more breathing room and let the gold accent carry the CTA.\n▸ Requesting one revision before acceptance.\nNOTE: Increase hero vertical spacing and make the primary CTA gold-on-dark.`;
+          out = `BRIEF FIT — pass: structure and sections match the ask.\nBRAND VOICE — on: tone holds the brand.\nCLAIMS AUDIT — flagged: the hero states a customer count the brief never provided.\n▸ Strong first pass with one compliance issue. Requesting one revision before acceptance.\nNOTE: Remove the unverified customer-count claim from the hero; keep copy benefit-led.`;
         }
-        const noteMatch = out.match(/NOTE:\s*(.+)/);
-        const revisionNote = noteMatch?.[1]?.trim() || "Tighten hero spacing; strengthen the brand accent on the primary CTA.";
+        const noteMatch = out.match(/NOTE:\s*([\s\S]+)/);
+        const revisionNote = noteMatch?.[1]?.trim() || "Remove any claim the brief did not authorize; keep copy benefit-led and on-brand.";
+        const claimsFlagged = /CLAIMS AUDIT\s*—\s*flagged/i.test(out);
         yield out.replace(/\nNOTE:[\s\S]*$/, "").trim();
-        yield `\n${SENTINEL}` + JSON.stringify({ approved: false, revisionNote });
+        yield `\n${SENTINEL}` + JSON.stringify({ approved: false, revisionNote, claimsFlagged });
         return;
       }
       let review = "";
       try {
         review = await complete(models.pitch, {
-          system: `You are the hiring orchestrator reviewing the REVISED delivery of a landing
-page (HTML below). Write a SHORT acceptance review, exactly 3 lines, each starting with "▸ ":
-(1) confirm the requested revision landed (name it), (2) one more concrete strength tied to
-the brand brief, (3) verdict line ending in "Accepting and releasing payment." Be specific.
-No preamble.`,
-          user: `Brief: ${brief}\n\nRevised HTML (truncated):\n${(html || "").slice(0, 3500)}`,
+          system: `You are the HIRING AGENT reviewing the REVISED delivery (HTML below) after
+requesting a brand/claims fix. Output exactly 3 lines, each starting with "▸ ":
+(1) confirm the requested fix landed (name it — e.g. the unsupported claim is gone),
+(2) confirm claims now trace to the brief and the brand voice holds,
+(3) verdict ending in "Accepting and releasing payment." Be specific. No preamble.`,
+          user: `Brief: ${brief}\n\nRevised HTML (truncated):\n${(html || "").slice(0, 4000)}`,
           maxTokens: 160,
         });
       } catch {
-        review = `▸ The revision landed — the hero breathes and the accent carries the eye.\n▸ Type and palette hold the brief precisely; this reads premium.\n▸ Quality verified. Accepting and releasing payment.`;
+        review = `▸ The flagged claim is gone — the page now states only what the brief supports.\n▸ Brand voice holds and every claim traces to the brief.\n▸ Compliance verified. Accepting and releasing payment.`;
       }
       yield review.trim();
       yield `\n${SENTINEL}` + JSON.stringify({ approved: true });

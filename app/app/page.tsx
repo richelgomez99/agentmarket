@@ -15,6 +15,7 @@ import DesignPreviewGrid, { type InspectState } from "./components/DesignPreview
 import PaymentPanel from "./components/PaymentPanel";
 import ReputationPanel from "./components/ReputationPanel";
 import ExplorerPanel from "./components/ExplorerPanel";
+import AgentReviewsModal from "./components/AgentReviewsModal";
 import { STYLES, styleById } from "@/lib/styles";
 import { PERSONAS } from "@/lib/personas";
 import { UGLY_PAGE } from "@/lib/uglyPage";
@@ -65,10 +66,10 @@ async function consumeOrchestrate<T>(res: Response): Promise<{ text: string; res
 const PHASE_HEADLINE: Record<Phase, string> = {
   idle: "Awaiting brief — the market is open",
   pitching: "Brief posted — agents are submitting quick style pitches",
-  evaluating: "Orchestrator is judging pitches + track records",
+  evaluating: "Hiring agent is judging pitches + track records",
   building: "Agent hired — full build streaming live",
   inspecting: "Hired agent is QA-testing the build",
-  awaiting: "HTTP 402 — build delivered, payment required",
+  awaiting: "Hiring agent acceptance review — brand & claims",
   paying: "Settling USDC on-chain via x402",
   rating: "Writing reputation on-chain (ERC-8004)",
   done: "Job complete — paid + rated on-chain",
@@ -100,6 +101,7 @@ export default function Home() {
   const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const [inspect, setInspect] = useState<InspectState | undefined>();
+  const [reviewAgent, setReviewAgent] = useState<Agent | undefined>();
   const deliverableRef = useRef<string>("");
 
   const downloadDeliverable = useCallback(() => {
@@ -288,8 +290,8 @@ export default function Home() {
   // T3: review -> revision round (operator-authorized) -> approval -> pay on-chain (x402-first)
   const runPayment = useCallback(
     async (payoutAddress: string, agentName: string, agentStyle: Style, agentId: string, briefText: string, firstHtml: string, id: number) => {
-      // included revisions vary per job (1 or 2) — beyond that, edits are paid via x402
-      const included = 1 + ((parseInt(agentId, 10) + briefText.length) % 2);
+      // included revisions are set by the agent operator in its config (varies per agent)
+      const included = styleById(agentStyle).includedRevisions;
       let html = firstHtml;
       try {
         let revisionsUsed = 0;
@@ -301,7 +303,7 @@ export default function Home() {
             await postOrchestrate({ stage: "review", brief: briefText, html, round })
           );
           if (id !== runId.current) return;
-          say("orchestrator", "Orchestrator", r.text);
+          say("orchestrator", "Hiring Agent", r.text);
           await new Promise((res) => setTimeout(res, 1800));
           if (id !== runId.current) return;
           if (r.result.approved || !r.result.revisionNote || round >= 3) break;
@@ -318,7 +320,7 @@ export default function Home() {
             );
             await new Promise((res) => setTimeout(res, 1200));
             if (id !== runId.current) return;
-            say("orchestrator", "Orchestrator", "Fair terms. Settling the revision fee now — HTTP 402.");
+            say("orchestrator", "Hiring Agent", "Fair terms. Settling the revision fee now — HTTP 402.");
             try {
               const feeRes = await fetch("/api/pay", {
                 method: "POST",
@@ -351,7 +353,7 @@ export default function Home() {
           html = await runBuild(agentStyle, briefText, id, r.result.revisionNote);
           if (id !== runId.current) return;
         }
-        say("orchestrator", "Orchestrator", "Terms honored, work accepted. Releasing payment — HTTP 402 flow.");
+        say("orchestrator", "Hiring Agent", "Terms honored, work accepted. Releasing payment — HTTP 402 flow.");
         await new Promise((res) => setTimeout(res, 800));
       } catch {
         await new Promise((res) => setTimeout(res, 2000));
@@ -436,7 +438,7 @@ export default function Home() {
     setComms([]);
     setPhase("pitching");
     setOutputs(STYLES.map((s) => ({ style: s.id, html: "", status: "loading" as const })));
-    say("orchestrator", "Orchestrator", "Brief posted to the market. Requesting style pitches — samples first; the full job goes to one winner.");
+    say("orchestrator", "Hiring Agent", "Brief posted to the market. Requesting style pitches — samples first; the full job goes to one winner.");
 
     try {
       // ── stage "open": on-chain discovery + style inference (with retry) ──
@@ -489,7 +491,7 @@ export default function Home() {
 
       // ── stage "evaluate": pitch fit + per-style on-chain track records (with retry) ──
       setPhase("evaluating");
-      say("orchestrator", "Orchestrator", "All pitches in. Scoring brand fit and cross-checking on-chain track records…");
+      say("orchestrator", "Hiring Agent", "All pitches in. Scoring brand fit and cross-checking on-chain track records…");
       const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string }>(
         await postOrchestrate({ stage: "evaluate", brief: briefText, inferredStyle: style, pitches: pitchStatuses })
       );
@@ -502,7 +504,7 @@ export default function Home() {
       if (id !== runId.current) return;
       setHiredStyle(winnerStyle);
       if (winner) {
-        say("orchestrator", "Orchestrator", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
+        say("orchestrator", "Hiring Agent", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
         await sayLive(winner.name, winnerStyle, "You just won the job — the client hired you over the other three agents. Acknowledge and say you are starting the full build.", PERSONAS[winnerStyle].hireAck, { context: briefText, sync: true });
       }
       await new Promise((r) => setTimeout(r, 1200));
@@ -523,11 +525,11 @@ export default function Home() {
       const winner = candidates.find((a) => a.style === fallbackStyle);
       setInferredStyle(fallbackStyle);
       setReasoning(
-        `▸ Orchestrator degraded (transient) — local selection.\n▸ Hiring the ${fallbackStyle} specialist${winner ? ` (${winner.name})` : ""}; proceeding with the full job.`
+        `▸ Hiring agent degraded (transient) — local selection.\n▸ Hiring the ${fallbackStyle} specialist${winner ? ` (${winner.name})` : ""}; proceeding with the full job.`
       );
       setHiredStyle(fallbackStyle);
       if (winner) {
-        say("orchestrator", "Orchestrator", `Registry read hiccuped — proceeding directly. @${winner.name}, the ${fallbackStyle} job is yours.`);
+        say("orchestrator", "Hiring Agent", `Registry read hiccuped — proceeding directly. @${winner.name}, the ${fallbackStyle} job is yours.`);
         await sayLive(winner.name, fallbackStyle, "You just won the job. Acknowledge and start the full build.", PERSONAS[fallbackStyle].hireAck, { context: briefText, sync: true });
       }
       const finalHtml = await runBuild(fallbackStyle, briefText, id);
@@ -584,7 +586,7 @@ export default function Home() {
       </div>
 
       {/* ── dashboard ── */}
-      <main className="mx-auto mt-5 grid max-w-[1760px] grid-cols-1 gap-5 px-5 lg:grid-cols-[350px_minmax(0,1fr)_370px] lg:px-8">
+      <main className="mx-auto mt-5 grid max-w-[1760px] grid-cols-1 items-start gap-5 px-5 lg:grid-cols-[350px_minmax(0,1fr)_370px] lg:px-8">
         {/* left: brain + comms + market */}
         <div className="flex flex-col gap-5">
           <OrchestratorReasoning
@@ -601,7 +603,7 @@ export default function Home() {
             <div className="flex flex-col gap-2.5">
               {agents.map((a, i) => (
                 <div key={a.agentId} className={"transition-all duration-700 " + (hiredStyle && !a.hired ? "opacity-40 saturate-50" : "")}>
-                  <AgentCandidateCard agent={a} inferredStyle={phase !== "idle" ? inferredStyle : undefined} selected={!!a.hired} />
+                  <AgentCandidateCard agent={a} inferredStyle={phase !== "idle" ? inferredStyle : undefined} selected={!!a.hired} onClick={() => setReviewAgent(a)} />
                   {phase === "pitching" && i < appliedCount ? (
                     <div className="mt-1 flex animate-pop-in items-center gap-1.5 px-1 font-mono text-[9px] tracking-[0.18em] text-cyan-300">
                       <span className="h-1 w-1 animate-pulse rounded-full bg-cyan-300"></span>APPLIED · PREPARING PITCH
@@ -647,6 +649,8 @@ export default function Home() {
           <ExplorerPanel events={events} />
         </div>
       </main>
+
+      {reviewAgent ? <AgentReviewsModal agent={reviewAgent} onClose={() => setReviewAgent(undefined)} /> : null}
     </div>
   );
 }

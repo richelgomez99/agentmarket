@@ -19,9 +19,14 @@ brief. Keep it small and fast — a complete but minimal HTML document.`;
 const BUILD_INSTRUCTION = `You won the job. Produce the FULL landing page for the brief:
 navigation bar, hero, a content/product section (e.g. 3 cards), and a footer. Polished,
 complete, self-contained. This page is judged on visual impact — confident typography,
-considered spacing, atmosphere. HARD BUDGET: keep the whole document under ~170 lines with
-lean, efficient CSS (no repetition), and ALWAYS finish the complete document ending in
-</html> — never run out mid-file.`;
+considered spacing, atmosphere.
+BRAND TRUTH (critical): use the brand name and any facts the brief states EXACTLY. Do NOT
+invent specific claims the brief did not provide — no fabricated metrics, customer/user
+counts, named testimonials, prices, star ratings, awards, or partner logos. Where the brief is
+silent on specifics, keep copy benefit-led and non-specific. The buyer audits claims against
+the brief and rejects unsupported ones.
+HARD BUDGET: keep the whole document under ~170 lines with lean, efficient CSS (no
+repetition), and ALWAYS finish the complete document ending in </html> — never run out mid-file.`;
 
 export async function POST(req: NextRequest) {
   const body = await req.json();

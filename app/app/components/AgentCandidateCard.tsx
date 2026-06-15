@@ -1,6 +1,7 @@
 "use client";
 // From the design handoff (specs/001-agentmarket/design) — presentational only.
-import { Bot, Star, BadgeCheck } from "lucide-react";
+// Clickable: opens the agent's on-chain review history.
+import { Bot, Star, BadgeCheck, History } from "lucide-react";
 import type { Agent, Style } from "@/lib/types";
 import { STYLE_META, truncAddr } from "./shared";
 
@@ -8,22 +9,33 @@ export default function AgentCandidateCard({
   agent,
   inferredStyle,
   selected,
+  onClick,
 }: {
   agent: Agent;
   inferredStyle?: Style;
   selected?: boolean;
+  onClick?: () => void;
 }) {
   const meta = STYLE_META[agent.style];
   const isMatch = !!inferredStyle && inferredStyle === agent.style;
   return (
     <div
+      onClick={onClick}
+      role={onClick ? "button" : undefined}
+      title={onClick ? "View on-chain reviews" : undefined}
       className={
-        "relative rounded-xl border p-3.5 transition-all duration-500 " +
+        "group relative rounded-xl border p-3.5 transition-all duration-500 " +
+        (onClick ? "cursor-pointer " : "") +
         (selected
           ? "border-cyan-400/70 bg-cyan-400/[0.07] shadow-[0_0_28px_-4px_rgba(34,211,238,0.4)] ring-1 ring-cyan-400/40"
           : "border-white/[0.07] bg-[#101218] hover:border-white/[0.14]")
       }
     >
+      {onClick ? (
+        <span className="absolute right-3 top-3 flex items-center gap-1 font-mono text-[8.5px] tracking-[0.15em] text-zinc-600 opacity-0 transition group-hover:opacity-100">
+          <History size={10} /> REVIEWS
+        </span>
+      ) : null}
       {selected ? (
         <div className="absolute -top-2.5 right-3 flex animate-pop-in items-center gap-1 rounded-full bg-cyan-400 px-2.5 py-0.5 font-mono text-[10px] font-bold tracking-[0.18em] text-[#06262c]">
           <BadgeCheck size={11} /> HIRED
