@@ -1,7 +1,10 @@
 // Pure unit test for mapApassVerdict — the centralized A-Pass verdict mapper (OQ-1 change point).
 // No live network. Run: `cd app && npx tsx lib/cleanverse.mapApassVerdict.test.ts`
 // (tsc also type-checks it via `npx tsc --noEmit`.)
-import { mapApassVerdict, type CvResponse } from "./cleanverse";
+import { mapApassVerdict } from "./cleanverse";
+
+// The mapper's argument type (CvResponse<ApassInner>), without importing the internal alias.
+type ApassResponse = Parameters<typeof mapApassVerdict>[0];
 
 let failures = 0;
 function assert(cond: boolean, msg: string) {
@@ -14,7 +17,7 @@ function assert(cond: boolean, msg: string) {
 }
 
 // 1) Observed UNVERIFIED payload (SPEC §3): outer 0000, inner code 2 "apass not exist".
-const observedUnverified: CvResponse<any> = {
+const observedUnverified: ApassResponse = {
   code: "0000",
   message: "ok",
   data: {

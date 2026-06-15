@@ -152,13 +152,47 @@ export default function Home() {
     [say]
   );
 
+  // Cleanverse C1 — progressive A-Pass verification (OFF the critical path).
+  // Fire-and-forget after candidates load: fetch per-address verification and merge into
+  // agent state by lowercased payoutAddress. Tolerates available:false, network error, or a
+  // slow response with zero impact on render/timing. With CLEANVERSE_* unset the route returns
+  // available:false and this is a pure no-op (parity with 001-agentmarket).
+  const mergeVerification = useCallback((fromAgents: Agent[]) => {
+    const unique = Array.from(
+      new Set(fromAgents.map((a) => a.payoutAddress?.toLowerCase()).filter((a): a is string => !!a))
+    );
+    if (!unique.length) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/cleanverse/verify?addresses=${encodeURIComponent(unique.join(","))}`);
+        if (!res.ok) return;
+        const d = (await res.json()) as { available?: boolean; results?: Record<string, Agent["verification"]> };
+        if (!d.available || !d.results) return;
+        const results = d.results;
+        setCandidates((prev) =>
+          prev.map((a) => {
+            const v = a.payoutAddress ? results[a.payoutAddress.toLowerCase()] : undefined;
+            return v ? { ...a, verification: v } : a;
+          })
+        );
+      } catch {
+        /* progressive enhancement — never block or surface the failure */
+      }
+    })();
+  }, []);
+
   // Idle market rail: real agents + on-chain reputation, read at mount
   useEffect(() => {
     fetch("/api/orchestrate")
       .then((r) => r.json())
-      .then((d) => setCandidates((prev) => (prev.length ? prev : d.candidates ?? [])))
+      .then((d) => {
+        const loaded: Agent[] = d.candidates ?? [];
+        setCandidates((prev) => (prev.length ? prev : loaded));
+        // Progressive enhancement, fire-and-forget — off the critical path.
+        if (loaded.length) mergeVerification(loaded);
+      })
       .catch(() => {});
-  }, []);
+  }, [mergeVerification]);
 
   const agents: Agent[] = candidates.map((a) => ({ ...a, hired: a.style === hiredStyle }));
   const hiredAgent = agents.find((a) => a.hired);
@@ -449,6 +483,7 @@ export default function Home() {
       );
       if (id !== runId.current) return;
       setCandidates(open.result.candidates);
+      mergeVerification(open.result.candidates); // C1: progressive, off the critical path
       setInferredStyle(open.result.inferredStyle);
       setReasoning(open.text);
       const style = open.result.inferredStyle;
@@ -544,7 +579,7 @@ export default function Home() {
       }
       setPhase("done");
     }
-  }, [brief, candidates, runBuild, runPayment, runRating, say, sayLive]);
+  }, [brief, candidates, mergeVerification, runBuild, runPayment, runRating, say, sayLive]);
 
   // keep the latest run() reachable from the autorun effect
   useEffect(() => {

@@ -28,6 +28,7 @@ export type Agent = {
   reputation: Reputation;
   perStyleScore?: number;
   hired?: boolean;
+  verification?: AgentVerification; // Cleanverse C1 — undefined ⇒ not yet checked
 };
 
 export type DesignOutput = {
