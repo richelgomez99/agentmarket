@@ -293,6 +293,7 @@ export default function Home() {
       // included revisions are set by the agent operator in its config (varies per agent)
       const included = styleById(agentStyle).includedRevisions;
       let html = firstHtml;
+      let lastFix = ""; // the change requested in the previous round (so re-review confirms IT)
       try {
         let revisionsUsed = 0;
         for (let round = 1; round <= 3; round++) {
@@ -300,7 +301,7 @@ export default function Home() {
           if (id !== runId.current) return;
           setPhase("awaiting");
           const r = await consumeOrchestrate<{ approved: boolean; revisionNote?: string }>(
-            await postOrchestrate({ stage: "review", brief: briefText, html, round })
+            await postOrchestrate({ stage: "review", brief: briefText, html, round, requestedFix: lastFix })
           );
           if (id !== runId.current) return;
           say("orchestrator", "Hiring Agent", r.text);
@@ -348,12 +349,13 @@ export default function Home() {
               { mustInclude: `${included} included revision${included > 1 ? "s" : ""}`, sync: true }
             );
           }
+          lastFix = r.result.revisionNote || "";
           await new Promise((res) => setTimeout(res, 1200));
           if (id !== runId.current) return;
           html = await runBuild(agentStyle, briefText, id, r.result.revisionNote);
           if (id !== runId.current) return;
         }
-        say("orchestrator", "Hiring Agent", "Terms honored, work accepted. Releasing payment — HTTP 402 flow.");
+        say("orchestrator", "Hiring Agent", revisionsUsed > 0 ? "Terms honored, revision accepted. Releasing payment — HTTP 402 flow." : "Work accepted on first delivery. Releasing payment — HTTP 402 flow.");
         await new Promise((res) => setTimeout(res, 800));
       } catch {
         await new Promise((res) => setTimeout(res, 2000));

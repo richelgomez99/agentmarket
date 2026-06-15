@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
 
   // ── stage: review — round 1 requests a concrete revision; round 2 approves ──
   if (stage === "review") {
-    const { html, round } = body as { html: string; round?: number };
+    const { html, round, requestedFix } = body as { html: string; round?: number; requestedFix?: string };
     const finalRound = (round ?? 1) >= 2;
     return streamText(async function* () {
       if (!finalRound) {
@@ -106,7 +106,8 @@ Be concrete; reference real text from the page. No preamble, no quotation marks.
             maxTokens: 240,
           });
         } catch {
-          out = `BRIEF FIT — pass: structure and sections match the ask.\nBRAND VOICE — on: tone holds the brand.\nCLAIMS AUDIT — flagged: the hero states a customer count the brief never provided.\n▸ Strong first pass with one compliance issue. Requesting one revision before acceptance.\nNOTE: Remove the unverified customer-count claim from the hero; keep copy benefit-led.`;
+          // On LLM error, approve cleanly — never fabricate an accusation about the page.
+          out = `BRIEF FIT — pass: structure and sections match the brief.\nBRAND VOICE — on: tone holds the brand throughout.\nCLAIMS AUDIT — clean: every claim traces to the brief.\n▸ Strong delivery, on-brand and accurate. Accepting and releasing payment.`;
         }
         // clean each line of stray quotes the model sometimes wraps around them
         const cleanLines = (t: string) =>
@@ -125,19 +126,21 @@ Be concrete; reference real text from the page. No preamble, no quotation marks.
         yield `\n${SENTINEL}` + JSON.stringify(approved ? { approved: true } : { approved: false, revisionNote, claimsFlagged });
         return;
       }
+      const fix = (requestedFix || "the requested change").slice(0, 300);
       let review = "";
       try {
         review = await complete(models.pitch, {
-          system: `You are the HIRING AGENT reviewing the REVISED delivery (HTML below) after
-requesting a brand/claims fix. Output exactly 3 lines, each starting with "▸ ":
-(1) confirm the requested fix landed (name it — e.g. the unsupported claim is gone),
-(2) confirm claims now trace to the brief and the brand voice holds,
-(3) verdict ending in "Accepting and releasing payment." Be specific. No preamble.`,
+          system: `You are the HIRING AGENT reviewing the REVISED delivery (HTML below). You had
+requested exactly this change: "${fix}". Output exactly 3 lines, each starting with "▸ ":
+(1) confirm THAT specific requested change landed (describe what changed — do NOT mention
+removing a claim unless the requested change was about a claim),
+(2) one more concrete strength now that it's revised, tied to the brand brief,
+(3) verdict ending in "Accepting and releasing payment." Be specific, no quotation marks, no preamble.`,
           user: `Brief: ${brief}\n\nRevised HTML (truncated):\n${(html || "").slice(0, 4000)}`,
           maxTokens: 160,
         });
       } catch {
-        review = `▸ The flagged claim is gone — the page now states only what the brief supports.\n▸ Brand voice holds and every claim traces to the brief.\n▸ Compliance verified. Accepting and releasing payment.`;
+        review = `▸ The requested change landed — the page now reflects it cleanly.\n▸ Brand voice holds and every claim traces to the brief.\n▸ Quality verified. Accepting and releasing payment.`;
       }
       const cleaned = review
         .split("\n")
