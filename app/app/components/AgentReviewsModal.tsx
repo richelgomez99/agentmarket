@@ -2,9 +2,9 @@
 // Click an agent -> inspect its REAL on-chain reputation (ERC-8004), broken down by specialty,
 // with a link to the registry on the Monad explorer.
 import { useEffect, useState } from "react";
-import { X, Star, ExternalLink, Loader2 } from "lucide-react";
+import { X, Star, ExternalLink, Loader2, BadgeCheck, ShieldAlert } from "lucide-react";
 import type { Agent } from "@/lib/types";
-import { STYLE_META } from "./shared";
+import { STYLE_META, truncAddr } from "./shared";
 
 type Breakdown = { style: keyof typeof STYLE_META; label: string; count: number; score: number };
 type Data = { breakdown: Breakdown[]; registryUrl?: string; identityUrl?: string; clientUrl?: string };
@@ -23,6 +23,7 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
   }, [agent.agentId]);
 
   const meta = STYLE_META[agent.style];
+  const v = agent.verification;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm" onClick={onClose}>
       <div className="w-full max-w-md overflow-hidden rounded-2xl border border-white/10 bg-[#0d0f15] shadow-2xl" onClick={(e) => e.stopPropagation()}>
@@ -54,6 +55,34 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
             <div className="font-mono text-[14px] font-bold text-cyan-300">#{agent.agentId}</div>
           </div>
         </div>
+
+        {v && v.status !== "unavailable" ? (
+          <div className="border-b border-white/[0.06] px-5 py-4">
+            <div className="mb-2.5 font-mono text-[10px] font-medium tracking-[0.2em] text-zinc-500">VERIFIED IDENTITY (A-PASS)</div>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              {v.status === "verified" ? (
+                <span className="flex items-center gap-1.5 rounded-md border border-emerald-400/30 bg-emerald-400/[0.08] px-2 py-1 font-mono text-[10.5px] tracking-[0.08em] text-emerald-300">
+                  <BadgeCheck size={13} /> Verified A-Pass holder
+                </span>
+              ) : (
+                <span className="flex items-center gap-1.5 rounded-md border border-amber-400/30 bg-amber-400/[0.08] px-2 py-1 font-mono text-[10.5px] tracking-[0.08em] text-amber-300">
+                  <ShieldAlert size={13} /> Unverified — KYC pending
+                </span>
+              )}
+              <span className="font-mono text-[11px] text-zinc-400" title={agent.payoutAddress}>{truncAddr(agent.payoutAddress)}</span>
+            </div>
+            {v.status === "unverified" && v.onboardUrl ? (
+              <a
+                href={v.onboardUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-amber-400/[0.25] bg-amber-400/[0.06] px-3 py-2 font-mono text-[11px] tracking-[0.1em] text-amber-300 transition hover:border-amber-400/50 hover:bg-amber-400/[0.1]"
+              >
+                OPEN KYC MAGIC LINK <ExternalLink size={12} />
+              </a>
+            ) : null}
+          </div>
+        ) : null}
 
         <div className="px-5 py-4">
           <div className="mb-2.5 font-mono text-[10px] font-medium tracking-[0.2em] text-zinc-500">REPUTATION BY SPECIALTY</div>

@@ -542,6 +542,16 @@ export default function Home() {
       setHiredStyle(winnerStyle);
       if (winner) {
         say("orchestrator", "Hiring Agent", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
+        const winnerVerification = candidates.find((c) => c.agentId === winner.agentId)?.verification;
+        if (winnerVerification && winnerVerification.status !== "unavailable") {
+          say(
+            "orchestrator",
+            "Hiring Agent",
+            winnerVerification.status === "verified"
+              ? "Counterparty A-Pass: ✓ verified"
+              : "Counterparty A-Pass: ✗ unverified — KYC pending"
+          );
+        }
         await sayLive(winner.name, winnerStyle, "You just won the job — the client hired you over the other three agents. Acknowledge and say you are starting the full build.", PERSONAS[winnerStyle].hireAck, { context: briefText, sync: true });
       }
       await new Promise((r) => setTimeout(r, 1200));
