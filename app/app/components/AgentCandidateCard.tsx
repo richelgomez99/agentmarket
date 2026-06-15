@@ -4,6 +4,7 @@
 import { Bot, Star, BadgeCheck, History } from "lucide-react";
 import type { Agent, Style } from "@/lib/types";
 import { STYLE_META, truncAddr } from "./shared";
+import VerifiedBadge from "./VerifiedBadge";
 
 export default function AgentCandidateCard({
   agent,
@@ -41,6 +42,9 @@ export default function AgentCandidateCard({
           <BadgeCheck size={11} /> HIRED
         </div>
       ) : null}
+      <div className="absolute left-3 top-3 z-10">
+        <VerifiedBadge verification={agent.verification} />
+      </div>
       <div className="flex items-start gap-3">
         <div className={"flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + (selected ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-zinc-400")}>
           <Bot size={19} />
