@@ -44,3 +44,8 @@ recordings/
 # Cleanverse hackathon — docs PDF carries the shared API key; never commit
 specs/Cleanverse*.pdf
 .env.cleanverse*
+
+# Lattice volatile runtime (track tasks/events/plans; ignore transient)
+.lattice/.daemon/
+.lattice/locks/
+.lattice/sessions/

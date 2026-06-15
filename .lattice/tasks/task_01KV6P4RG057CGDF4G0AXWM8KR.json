@@ -1,0 +1,38 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "GET /api/cleanverse/verify?addresses=... (nodejs). FR-003/004. New app/app/api/cleanverse/verify/route.ts. Parse comma-sep addresses (lowercase, validate 0x). !cvConfigured() => {available:false,results:{}} with ZERO network calls. Else verifyAddresses => {available:true,results}. Best-effort, never 5xx; per-address failures => unavailable. Atoken+chain are server constants. AC-1: live CLIENT+OWNER => unverified+magickLink. Depends on CLN-2.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01KV6P4RG057CGDF4G0AXWM8KR",
+  "last_event_id": "ev_01KV6P4S3A3DKB3X7JSH5K9HC2",
+  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-06-15T22:23:58Z",
+      "created_by": "agent:claude-opus-4-architect",
+      "note": null,
+      "target_task_id": "task_01KV6P4RCQ7X2NKHS06QH69H4Z",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-3",
+  "status": "backlog",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "Cleanverse verify API route",
+  "type": "task",
+  "updated_at": "2026-06-15T22:23:58Z",
+  "urgency": null
+}

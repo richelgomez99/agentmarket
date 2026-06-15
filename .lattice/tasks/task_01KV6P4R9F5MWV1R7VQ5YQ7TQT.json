@@ -1,0 +1,30 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "low",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Single source of truth for the live-validated Cleanverse Monad contracts. Export consts in app/lib/cleanverse.ts: AUSDC_MONAD=0xaC0893567D43C3E7e6e35a72803df05416C1f20D, APASS_MONAD=0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9, ACCESSCORE_MONAD=0x8F118338a1fa41E7Fa86Be19A4e8B99Ed58A6EcC, USDC_MONAD=0x534b2f3A21130d7a60830c2Df862319e593943A3. CV_CHAIN exists. SPEC sec.3. Acceptance: typed exports, tsc clean, no behavior change.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01KV6P4R9F5MWV1R7VQ5YQ7TQT",
+  "last_event_id": "ev_01KV6P4R9F5MWV1R7VQ5YQ7TQV",
+  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-1",
+  "status": "backlog",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "Cleanverse Monad config constants",
+  "type": "chore",
+  "updated_at": "2026-06-15T22:23:57Z",
+  "urgency": null
+}

@@ -1,0 +1,38 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "FR-005/006. Add AgentVerification + Agent.verification? to app/lib/types.ts. In app/app/page.tsx, AFTER candidates load (idle rail + orchestrate open stage), fetch GET /api/cleanverse/verify?addresses=<unique payoutAddresses>, merge by address into agent state. Must NOT block render; tolerate available:false. Absent field => not-checked (never unverified). Depends on CLN-3.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01KV6P4RK7FWE92H9F2CX5845W",
+  "last_event_id": "ev_01KV6P4S6MED6Z71BQA6FPF043",
+  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-06-15T22:23:58Z",
+      "created_by": "agent:claude-opus-4-architect",
+      "note": null,
+      "target_task_id": "task_01KV6P4RG057CGDF4G0AXWM8KR",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-4",
+  "status": "backlog",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "Agent.verification type + progressive client merge",
+  "type": "task",
+  "updated_at": "2026-06-15T22:23:58Z",
+  "urgency": null
+}

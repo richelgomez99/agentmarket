@@ -1,0 +1,38 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 0,
+  "complexity": "medium",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "FR-007, SPEC sec.8. New app/app/components/VerifiedBadge.tsx, 4 states: Verified (green BadgeCheck), Unverified (amber ShieldAlert), Checking (muted pulse), Hidden (unavailable/unconfigured). Integrate into AgentCandidateCard.tsx top-left, no collision with HIRED (top-right) or REVIEWS hover chip. Honesty: Verified only on real verified:true. Depends on CLN-4. Parallel with CLN-6.",
+  "done_at": null,
+  "evidence_refs": [],
+  "id": "task_01KV6P4RPDKEDZQ4DSA72TTJZK",
+  "last_event_id": "ev_01KV6P4S9TRTW2AZW50C4JDMZR",
+  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-06-15T22:23:58Z",
+      "created_by": "agent:claude-opus-4-architect",
+      "note": null,
+      "target_task_id": "task_01KV6P4RK7FWE92H9F2CX5845W",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-5",
+  "status": "backlog",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "VerifiedBadge component + card integration",
+  "type": "task",
+  "updated_at": "2026-06-15T22:23:58Z",
+  "urgency": null
+}

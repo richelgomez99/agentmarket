@@ -1,0 +1,3 @@
+# AGNTM-2: Cleanverse verification service (verifyAddresses)
+
+Normalize /verify_apass into AgentVerification (FR-001/002). getWalletVerification(address) wraps cvVerifyApass(address,AUSDC_MONAD,CV_CHAIN); verifyAddresses(addresses[]) DEDUPES by address. Centralize the verdict mapper (the one place OQ-1 changes): outer code==0000 + inner success => verified; inner data.code non-success (2 / apass not exist) => unverified + onboardUrl=data.magickLink; throw/transport error => status=unavailable. Stamp checkedAt. Unit-test mapper vs observed unverified payload + synthesized verified one. Depends on CLN-1.
