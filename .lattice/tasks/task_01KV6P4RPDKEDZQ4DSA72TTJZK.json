@@ -1,17 +1,36 @@
 {
-  "assigned_to": null,
+  "assigned_to": {
+    "agent_type": "orchestrated",
+    "base_name": "cln-planner",
+    "framework": "claude-code",
+    "model": "claude-opus-4-8",
+    "name": "cln-planner-1",
+    "serial": 1,
+    "session": "sess_01KV6Q3FTDSB0J8PBFRS9ASK13"
+  },
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-06-15T22:23:57Z",
   "created_by": "agent:claude-opus-4-architect",
   "custom_fields": {},
   "description": "FR-007, SPEC sec.8. New app/app/components/VerifiedBadge.tsx, 4 states: Verified (green BadgeCheck), Unverified (amber ShieldAlert), Checking (muted pulse), Hidden (unavailable/unconfigured). Integrate into AgentCandidateCard.tsx top-left, no collision with HIRED (top-right) or REVIEWS hover chip. Honesty: Verified only on real verified:true. Depends on CLN-4. Parallel with CLN-6.",
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-06-15T23:01:49Z",
+  "evidence_refs": [
+    {
+      "id": "art_01KV6R02DWHZ3H0FQXEMA2G3CJ",
+      "role": "plan-review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "ev_01KV6RA0GV6BQTF07Y46HY1CMY",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01KV6P4RPDKEDZQ4DSA72TTJZK",
-  "last_event_id": "ev_01KV6P4S9TRTW2AZW50C4JDMZR",
-  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "last_event_id": "ev_01KV6RA3G1GEHRX0EWSHGVWZ5W",
+  "last_status_changed_at": "2026-06-15T23:01:49Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -26,13 +45,13 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AGNTM-5",
-  "status": "backlog",
+  "status": "done",
   "tags": [
     "cleanverse",
     "c1"
   ],
   "title": "VerifiedBadge component + card integration",
   "type": "task",
-  "updated_at": "2026-06-15T22:23:58Z",
+  "updated_at": "2026-06-15T23:01:49Z",
   "urgency": null
 }

@@ -1,17 +1,36 @@
 {
-  "assigned_to": null,
+  "assigned_to": {
+    "agent_type": "orchestrated",
+    "base_name": "cln-planner",
+    "framework": "claude-code",
+    "model": "claude-opus-4-8",
+    "name": "cln-planner-1",
+    "serial": 1,
+    "session": "sess_01KV6Q3FTDSB0J8PBFRS9ASK13"
+  },
   "branch_links": [],
-  "comment_count": 0,
+  "comment_count": 1,
   "complexity": "medium",
   "created_at": "2026-06-15T22:23:57Z",
   "created_by": "agent:claude-opus-4-architect",
   "custom_fields": {},
   "description": "FR-008/009. AgentReviewsModal.tsx: add VERIFIED IDENTITY (A-PASS) row (status + verified address; magic-link button onboardUrl when unverified). page.tsx: on hire emit EXACTLY ONE Hiring-Agent line stating winner verification status. MUST NOT alter winner or payment. Depends on CLN-4. Parallel with CLN-5.",
-  "done_at": null,
-  "evidence_refs": [],
+  "done_at": "2026-06-15T23:01:49Z",
+  "evidence_refs": [
+    {
+      "id": "art_01KV6R1K5K3YW61EGAP3EHPJQF",
+      "role": "plan-review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "ev_01KV6RA0M8NAVZCS7GDTARMZF5",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
   "id": "task_01KV6P4RSPK4A53BX331PY5B83",
-  "last_event_id": "ev_01KV6P4SD02NKYZ3TH2P1VX81X",
-  "last_status_changed_at": "2026-06-15T22:23:57Z",
+  "last_event_id": "ev_01KV6RA3KD97QNHP5SX4FFHRM6",
+  "last_status_changed_at": "2026-06-15T23:01:49Z",
   "linked_files": [],
   "priority": "medium",
   "relationships_out": [
@@ -26,13 +45,13 @@
   "reopened_count": 0,
   "schema_version": 1,
   "short_id": "AGNTM-6",
-  "status": "backlog",
+  "status": "done",
   "tags": [
     "cleanverse",
     "c1"
   ],
   "title": "Modal verification row + Hiring-Agent line",
   "type": "task",
-  "updated_at": "2026-06-15T22:23:58Z",
+  "updated_at": "2026-06-15T23:01:49Z",
   "urgency": null
 }
