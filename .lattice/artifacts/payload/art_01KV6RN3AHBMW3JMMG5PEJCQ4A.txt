@@ -1,0 +1,89 @@
+CLEANVERSE C1 (AGNTM-7) — VALIDATION GATE EVIDENCE
+Executed by cln-validate-1 on 2026-06-15, branch `cleanverse`, against a RUNNING system.
+Bar: "I saw it work." All evidence is real (live sandbox + headless browser render).
+
+=====================================================================
+C — BUILD HEALTH (AC-6)
+=====================================================================
+[PASS] cd app && npx tsc --noEmit            → TSC_OK (0 errors)
+[PASS] npx tsx lib/cleanverse.mapApassVerdict.test.ts → "All mapApassVerdict assertions passed."
+[PASS] npm run build                          → succeeded (static + dynamic routes prerendered)
+
+=====================================================================
+TEST ADDRESSES (discovered from live /api/orchestrate)
+=====================================================================
+Registered agents (agentIds 1765-1768): DarkModeAgent, GlassAgent, BrutalistAgent, PlayfulAgent.
+ALL four resolve payoutAddress = 0xAf5E06f8924d4480EfEeA1122485a8e9C63c2Abd (OWNER).
+  - OWNER (verified, holds A-Pass):  0xAf5E06f8924d4480EfEeA1122485a8e9C63c2Abd
+  - Unverified demonstrator (valid 42-char, no A-Pass): 0x000000000000000000000000000000000000dead
+NOTE: the brief's "0x261B…CF95" shorthand is a 44-char string (42 hex digits), which is
+malformed and correctly DROPPED by the route's ADDR_RE (/^0x[0-9a-f]{40}$/). Used 0x…dead
+as the valid known-unverified address instead.
+
+=====================================================================
+A — DEGRADATION PARITY, Cleanverse OFF (G5 / AC-3) — THE MUST-PASS
+=====================================================================
+Dev server on :3947 with CLEANVERSE_API_ID='' CLEANVERSE_API_KEY='' CLEANVERSE_BASE_URL=''
+(empty shell vars make cvConfigured() false; .env.local left untouched on disk).
+
+GET /api/cleanverse/verify?addresses=0x261b0000000000000000000000000000000000cf95
+  → {"available":false,"results":{}}          HTTP 200
+GET /                                          → HTTP 200
+Route short-circuits at `if (!cvConfigured()) return {available:false,results:{}}`
+BEFORE any fetch ⇒ ZERO Cleanverse network calls on the critical path. page.tsx merge
+logic no-ops on available:false ⇒ no badges, no timing change. [PASS]
+
+=====================================================================
+B — LIVE VERIFIED-IDENTITY PATH, Cleanverse ON (AC-1, AC-2, AC-4)
+=====================================================================
+Dev server on :3948 with .env.local restored (real sandbox creds). Live calls to the
+Cleanverse UAT sandbox.
+
+[AC-1 verified] GET /api/cleanverse/verify?addresses=0xAf5E06f8924d4480EfEeA1122485a8e9C63c2Abd
+  → {"available":true,"results":{"0xaf5e06f8924d4480efeea1122485a8e9c63c2abd":
+       {"verified":true,"status":"verified","checkedAt":1781564696933}}}   HTTP 200
+  (real data.code:4 "apass verify success" — matches OQ1-RESOLVED)
+
+[AC-1 unverified] GET /api/cleanverse/verify?addresses=0x000000000000000000000000000000000000dead
+  → {"available":true,"results":{"0x000000000000000000000000000000000000dead":
+       {"verified":false,"status":"unverified",
+        "onboardUrl":"https://test-magiclink.cleanverse.com/","checkedAt":1781564742796}}}  HTTP 200
+  (unverified + magickLink onboardUrl — exactly OQ1-RESOLVED's unverified shape)
+
+[combined] GET /api/cleanverse/verify?addresses=<OWNER>,0x…dead
+  → both states returned together, deduped, keyed lowercased, HTTP 200.
+
+[AC-4 robustness] GET .../verify?addresses=0x…dead,GARBAGE,0xZZZ,0x261b…cf95(44ch)
+  → only 0x…dead kept; all malformed entries silently dropped; HTTP 200 (NO 5xx).
+[dedupe] duplicate OWNER in list → single result entry.
+[empty] ?addresses= → {"available":true,"results":{}} HTTP 200.
+
+MAPPER ASSUMPTION CHECK: the real verified response (data.code:4) maps to status:"verified"
+and the unverified (data.code:2) maps to status:"unverified"+onboardUrl. Confirmed correct —
+NO mapper change needed.
+
+=====================================================================
+B — UI RENDER (headless browser, :3948) — AC-2 + AC-4
+=====================================================================
+GET / → all 4 agent cards render the green "A-PASS" verified badge (payout=OWNER verifies
+live). No Cleanverse console errors (only benign WalletConnect/Lit dev-mode warnings).
+  Screenshot: /tmp/cv-c1-market-rail-badges.png
+Click agent card → modal shows "VERIFIED IDENTITY (A-PASS)" row + "Verified A-Pass holder".
+  Screenshot: /tmp/cv-c1-modal-verification.png
+
+=====================================================================
+CLEANUP
+=====================================================================
+- Dev servers on :3947 and :3948 killed.
+- app/.env.local restored from /tmp/cv.env.bak (diff -q matches), gitignored (git check-ignore
+  passes), never printed, never committed.
+
+=====================================================================
+VERDICT: GATE PASS
+=====================================================================
+AC-1 (live verify, both states) ........ PASS
+AC-2 (market rail badges render) ....... PASS
+AC-3 / G5 (OFF degradation parity) ..... PASS  ← the must-pass
+AC-4 (modal row + route robustness) .... PASS
+AC-6 (tsc + test + build) .............. PASS
+→ Ready for pr_open (orchestrator opens the single C1 PR).
