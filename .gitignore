@@ -40,3 +40,7 @@ npm-debug.log*
 
 # local demo recordings (>100MB, kept out of git)
 recordings/
+
+# Cleanverse hackathon — docs PDF carries the shared API key; never commit
+specs/Cleanverse*.pdf
+.env.cleanverse*
