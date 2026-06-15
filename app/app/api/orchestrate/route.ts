@@ -94,24 +94,35 @@ export async function POST(req: NextRequest) {
           out = await complete(models.pitch, {
             system: `You are the HIRING AGENT — the buyer's brand guardian — running acceptance
 review on a delivered landing page (HTML below), checking it against the client brief.
-Audit three things, output EXACTLY these three lines:
-"BRIEF FIT — <pass/partial>: <6-10 word note>"
-"BRAND VOICE — <on/off>: <6-10 word note>"
-"CLAIMS AUDIT — <clean/flagged>: <if flagged, quote the exact unsupported claim from the page (a number, testimonial, price, rating, or award the brief never stated); if clean, say 'every claim traces to the brief'>"
-Then a 4th line: "▸ <one-sentence verdict>. Requesting one revision before acceptance."
-Then a new line: "NOTE: <the single most important fix as an instruction — prefer removing/rewording any unsupported claim from the CLAIMS AUDIT; otherwise the biggest brand-fit gap>."
-Be concrete and quote real text from the page. No preamble.`,
+Audit three things. Output plain text, NO quotation marks anywhere, exactly these lines:
+BRIEF FIT — pass or partial: 6-10 word note
+BRAND VOICE — on or off: 6-10 word note
+CLAIMS AUDIT — clean or flagged: if flagged, name the exact unsupported claim on the page (a number, testimonial, price, rating, or award the brief never stated); if clean, write "every claim traces to the brief"
+Then ONE verdict line starting with "▸ ":
+- If a claim is FLAGGED or brand fit is partial or voice is off: end the verdict with "Requesting one revision before acceptance." and add a final line exactly "NOTE: <one concrete fix instruction — prefer removing/rewording the flagged claim>".
+- If everything is clean AND strong: end the verdict with "Accepting and releasing payment." and add NO note line.
+Be concrete; reference real text from the page. No preamble, no quotation marks.`,
             user: `Brief: ${brief}\n\nDelivered HTML (truncated):\n${(html || "").slice(0, 4000)}`,
             maxTokens: 240,
           });
         } catch {
           out = `BRIEF FIT — pass: structure and sections match the ask.\nBRAND VOICE — on: tone holds the brand.\nCLAIMS AUDIT — flagged: the hero states a customer count the brief never provided.\n▸ Strong first pass with one compliance issue. Requesting one revision before acceptance.\nNOTE: Remove the unverified customer-count claim from the hero; keep copy benefit-led.`;
         }
-        const noteMatch = out.match(/NOTE:\s*([\s\S]+)/);
-        const revisionNote = noteMatch?.[1]?.trim() || "Remove any claim the brief did not authorize; keep copy benefit-led and on-brand.";
+        // clean each line of stray quotes the model sometimes wraps around them
+        const cleanLines = (t: string) =>
+          t
+            .split("\n")
+            .map((l) => l.trim().replace(/^["'`]+|["'`]+$/g, "").trim())
+            .filter(Boolean)
+            .join("\n");
+        const noteMatch = out.match(/NOTE:\s*([\s\S]+)/i);
+        const approved = !noteMatch && /accepting and releasing payment/i.test(out);
         const claimsFlagged = /CLAIMS AUDIT\s*—\s*flagged/i.test(out);
-        yield out.replace(/\nNOTE:[\s\S]*$/, "").trim();
-        yield `\n${SENTINEL}` + JSON.stringify({ approved: false, revisionNote, claimsFlagged });
+        const reviewText = cleanLines(out.replace(/["'`]*\s*NOTE:[\s\S]*$/i, ""));
+        const revisionNote = noteMatch?.[1]?.trim().replace(/^["'`]+|["'`]+$/g, "") ||
+          "Remove any claim the brief did not authorize; keep copy benefit-led and on-brand.";
+        yield reviewText;
+        yield `\n${SENTINEL}` + JSON.stringify(approved ? { approved: true } : { approved: false, revisionNote, claimsFlagged });
         return;
       }
       let review = "";
@@ -128,7 +139,12 @@ requesting a brand/claims fix. Output exactly 3 lines, each starting with "▸ "
       } catch {
         review = `▸ The flagged claim is gone — the page now states only what the brief supports.\n▸ Brand voice holds and every claim traces to the brief.\n▸ Compliance verified. Accepting and releasing payment.`;
       }
-      yield review.trim();
+      const cleaned = review
+        .split("\n")
+        .map((l) => l.trim().replace(/^["'`]+|["'`]+$/g, "").trim())
+        .filter(Boolean)
+        .join("\n");
+      yield cleaned;
       yield `\n${SENTINEL}` + JSON.stringify({ approved: true });
     });
   }

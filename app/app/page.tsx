@@ -413,7 +413,7 @@ export default function Home() {
         const dh: string | undefined = (d as { deliverableHash?: string }).deliverableHash;
         say(
           "orchestrator",
-          "Orchestrator",
+          "Hiring Agent",
           `Rated ★4.9 — written to the ERC-8004 registry${dh && !/^0x0+$/.test(dh) ? `, with the deliverable's hash sealed in the record (${dh.slice(0, 10)}…). Provable delivery.` : "."}`
         );
         await sayLive(agent.name, agent.style, `Your on-chain reputation just updated: this is job #${d.reputation.count} on your permanent record. Sign off, in character.`, PERSONAS[agent.style].rated(d.reputation.count), { mustInclude: `job #${d.reputation.count}`, sync: true });
