@@ -5,6 +5,7 @@
 // the JSON body and send {"data":"<base64>"}; query/verify endpoints send plaintext.
 // AES: AES-256-CBC, PKCS5/PKCS7 padding, fixed 16 zero-byte IV, key = Base64-decoded api-key.
 import crypto from "crypto";
+import type { AgentVerification } from "./types";
 
 const API_ID = process.env.CLEANVERSE_API_ID || "";
 const API_KEY_B64 = process.env.CLEANVERSE_API_KEY || "";
@@ -105,3 +106,82 @@ export const cvQueryTxs = (body: Record<string, unknown>) => cvFetch("/query_txs
 
 /** Travel Rule export (audit-ready report). */
 export const cvDownloadTravelRule = (body: Record<string, unknown>) => cvFetch("/download_travel_rule", body);
+
+// ── A-Pass verification → AgentVerification ─────────────────────────────────
+// The inner verdict payload of /verify_apass. cvFetch transparently decrypts data
+// when it comes back encrypted, so by the time we map it `data` is an object.
+type ApassInner = {
+  code?: number | string;
+  message?: string;
+  magickLink?: string; // note spelling: magickLink (KYC onboarding URL)
+  verified?: boolean;
+  status?: string;
+  [k: string]: unknown;
+};
+
+/**
+ * THE centralized A-Pass verdict mapper — the single OQ-1 change point.
+ *
+ * Verdict rules (SPEC §3, FR-002):
+ *   • outer code "0000" + inner success signal      ⇒ verified:true,  status "verified"
+ *   • outer code "0000" + inner non-success code     ⇒ verified:false, status "unverified", onboardUrl = data.magickLink
+ *       (observed: data.code === 2 / "apass not exist")
+ *   • non-"0000" outer code OR thrown/transport err  ⇒ verified:false, status "unavailable"
+ *       ("we couldn't check" ≠ "checked, not verified")
+ *
+ * ⚠ OQ-1: the VERIFIED inner signal is UNOBSERVED (no A-Pass minted yet). We treat an
+ * explicit not-exist / non-zero inner code as unverified, and outer-OK + inner success as
+ * verified. The success test is deliberately defensive (inner code 0/"0"/"0000", OR an
+ * explicit verified:true, OR a "valid"/"verified"/"active" status string). THIS FUNCTION IS
+ * THE ONLY PLACE THAT CHANGES once a real verified response is observed — keep all verdict
+ * logic here.
+ */
+export function mapApassVerdict(r: CvResponse<ApassInner>): AgentVerification {
+  const checkedAt = Date.now();
+
+  // Transport/outer failure ⇒ we couldn't check.
+  if (!isOk(r)) return { verified: false, status: "unavailable", checkedAt };
+
+  const data: ApassInner = (r.data && typeof r.data === "object" ? r.data : {}) as ApassInner;
+
+  // Defensive success detection (OQ-1): any of these positive signals ⇒ verified.
+  const innerCode = data.code;
+  const successCode = innerCode === 0 || innerCode === "0" || innerCode === "0000";
+  const successFlag = data.verified === true;
+  const statusStr = typeof data.status === "string" ? data.status.toLowerCase() : "";
+  const successStatus = statusStr === "valid" || statusStr === "verified" || statusStr === "active";
+
+  if (successCode || successFlag || successStatus) {
+    return { verified: true, status: "verified", checkedAt };
+  }
+
+  // Outer OK but no success signal (observed: inner code 2 "apass not exist") ⇒ unverified.
+  return {
+    verified: false,
+    status: "unverified",
+    onboardUrl: typeof data.magickLink === "string" ? data.magickLink : undefined,
+    checkedAt,
+  };
+}
+
+/** Verify a single wallet's A-Pass against aUSDC on Monad; never throws (maps errors to "unavailable"). */
+export async function getWalletVerification(address: string): Promise<AgentVerification> {
+  try {
+    const r = await cvVerifyApass(address, AUSDC_MONAD, CV_CHAIN);
+    return mapApassVerdict(r as CvResponse<ApassInner>);
+  } catch {
+    return { verified: false, status: "unavailable", checkedAt: Date.now() };
+  }
+}
+
+/**
+ * Verify many addresses, deduped by lowercased address (FR-003). Returns a map keyed by the
+ * lowercased address. Per-address failures already resolve to "unavailable" — best-effort.
+ */
+export async function verifyAddresses(addresses: string[]): Promise<Record<string, AgentVerification>> {
+  const unique = Array.from(new Set(addresses.map((a) => a.toLowerCase())));
+  const entries = await Promise.all(
+    unique.map(async (addr) => [addr, await getWalletVerification(addr)] as const)
+  );
+  return Object.fromEntries(entries);
+}
