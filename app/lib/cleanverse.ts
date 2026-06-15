@@ -129,12 +129,12 @@ type ApassInner = {
  *   • non-"0000" outer code OR thrown/transport err  ⇒ verified:false, status "unavailable"
  *       ("we couldn't check" ≠ "checked, not verified")
  *
- * ⚠ OQ-1: the VERIFIED inner signal is UNOBSERVED (no A-Pass minted yet). We treat an
- * explicit not-exist / non-zero inner code as unverified, and outer-OK + inner success as
- * verified. The success test is deliberately defensive (inner code 0/"0"/"0000", OR an
- * explicit verified:true, OR a "valid"/"verified"/"active" status string). THIS FUNCTION IS
- * THE ONLY PLACE THAT CHANGES once a real verified response is observed — keep all verdict
- * logic here.
+ * ✅ OQ-1 RESOLVED (live sandbox, see .specify/cleanverse-c1/OQ1-RESOLVED.md): the verified
+ * inner signal is `data.code === 4` / `data.message` "apass verify success"; unverified is
+ * `data.code === 2` / "apass not exist". `magickLink` is present in BOTH states, so it is NOT
+ * a signal — the verdict is `data.code`. The extra defensive checks (0/"0"/"0000", verified:true,
+ * "valid"/"verified"/"active" status) are kept as belt-and-suspenders for shape drift. THIS
+ * FUNCTION REMAINS THE ONLY PLACE verdict logic lives — keep it centralized.
  */
 export function mapApassVerdict(r: CvResponse<ApassInner>): AgentVerification {
   const checkedAt = Date.now();
@@ -144,14 +144,17 @@ export function mapApassVerdict(r: CvResponse<ApassInner>): AgentVerification {
 
   const data: ApassInner = (r.data && typeof r.data === "object" ? r.data : {}) as ApassInner;
 
-  // Defensive success detection (OQ-1): any of these positive signals ⇒ verified.
+  // Success detection. Confirmed real signal first (OQ-1): inner code 4 / "verify success".
   const innerCode = data.code;
+  const msgStr = typeof data.message === "string" ? data.message.toLowerCase() : "";
+  const verifiedSignal = innerCode === 4 || innerCode === "4" || msgStr.includes("verify success");
+  // Belt-and-suspenders fallbacks for any future shape drift.
   const successCode = innerCode === 0 || innerCode === "0" || innerCode === "0000";
   const successFlag = data.verified === true;
   const statusStr = typeof data.status === "string" ? data.status.toLowerCase() : "";
   const successStatus = statusStr === "valid" || statusStr === "verified" || statusStr === "active";
 
-  if (successCode || successFlag || successStatus) {
+  if (verifiedSignal || successCode || successFlag || successStatus) {
     return { verified: true, status: "verified", checkedAt };
   }
 

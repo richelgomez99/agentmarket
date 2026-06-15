@@ -37,7 +37,28 @@ const observedUnverified: ApassResponse = {
   assert(typeof v.checkedAt === "number", "observed unverified ⇒ checkedAt stamped");
 }
 
-// 2) Synthesized VERIFIED payload (OQ-1 unobserved): outer 0000, inner code 0.
+// 2) CONFIRMED VERIFIED payload (OQ-1 RESOLVED, live sandbox): outer 0000, inner code 4
+//    "apass verify success". magickLink is present in BOTH states, so it must NOT flip the verdict.
+const observedVerified: ApassResponse = {
+  code: "0000",
+  message: "ok",
+  data: {
+    chain: "monad",
+    atoken: "0xaC0893567D43C3E7e6e35a72803df05416C1f20D",
+    address: "0xAf5E06f8924d4480EfEeA1122485a8e9C63c2Abd",
+    code: 4,
+    message: "apass verify success",
+    magickLink: "https://test-magiclink.cleanverse.com/",
+  },
+};
+{
+  const v = mapApassVerdict(observedVerified);
+  assert(v.verified === true, "observed verified (code 4) ⇒ verified:true");
+  assert(v.status === "verified", "observed verified (code 4) ⇒ status 'verified'");
+  assert(v.onboardUrl === undefined, "verified ⇒ no onboardUrl despite magickLink present");
+  assert(typeof v.checkedAt === "number", "observed verified ⇒ checkedAt stamped");
+}
+// 2a) Defensive: inner code 0 also treated as success (shape-drift fallback).
 {
   const v = mapApassVerdict({ code: "0000", message: "ok", data: { code: 0, message: "ok" } });
   assert(v.verified === true, "inner code 0 ⇒ verified:true");
