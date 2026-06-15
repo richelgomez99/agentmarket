@@ -12,6 +12,13 @@ const BASE = process.env.CLEANVERSE_BASE_URL || "https://uatapi.cleanverse.com/a
 // Chain identifier for Monad on Cleanverse (override via env once confirmed against the API).
 export const CV_CHAIN = process.env.CLEANVERSE_CHAIN || "monad";
 
+// Live-validated Cleanverse Monad contract addresses (SPEC §3 — sandbox-confirmed).
+// Single source of truth so no address is hardcoded ad hoc.
+export const AUSDC_MONAD = "0xaC0893567D43C3E7e6e35a72803df05416C1f20D";
+export const APASS_MONAD = "0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9";
+export const ACCESSCORE_MONAD = "0x8F118338a1fa41E7Fa86Be19A4e8B99Ed58A6EcC";
+export const USDC_MONAD = "0x534b2f3A21130d7a60830c2Df862319e593943A3";
+
 export function cvConfigured() {
   return !!API_ID && !!API_KEY_B64;
 }
