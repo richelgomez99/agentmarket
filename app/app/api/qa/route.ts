@@ -35,6 +35,8 @@ Inspect them the way a real QA engineer would. Flag only REAL defects a client w
 
 Do NOT invent problems. If it genuinely looks polished, pass it.
 
+CONSISTENCY (critical): every problem you mention in the summary MUST also appear in "findings" with a severity. If anything is a MAJOR problem, the verdict MUST be "issues" — never say "pass" while flagging a major issue. For "pass", the summary affirms it's client-ready (you may note minor polish only).
+
 Reply with ONLY this JSON (no prose):
 {"verdict":"pass" | "issues","findings":[{"title":"<specific, concrete>","viewport":"desktop"|"mobile"|"both","severity":"major"|"minor"}],"summary":"<one sentence, first-person, in the voice of a QA agent reporting to the team>"}`;
 
@@ -67,7 +69,11 @@ async function visionQA(desktopB64: string, mobileB64: string): Promise<{ verdic
   const text = data.content?.map((c) => c.text || "").join("") || "";
   const m = text.match(/\{[\s\S]*\}/);
   const parsed = JSON.parse(m ? m[0] : text) as { verdict: "pass" | "issues"; findings?: Finding[]; summary?: string };
-  return { verdict: parsed.verdict === "issues" ? "issues" : "pass", findings: Array.isArray(parsed.findings) ? parsed.findings.slice(0, 6) : [], summary: parsed.summary || "" };
+  const findings = Array.isArray(parsed.findings) ? parsed.findings.slice(0, 6) : [];
+  // consistency guard: any MAJOR finding ⇒ issues (the model sometimes says "pass" while its
+  // summary flags a major problem — never let the verdict contradict its own findings)
+  const verdict: "pass" | "issues" = parsed.verdict === "issues" || findings.some((f) => f.severity === "major") ? "issues" : "pass";
+  return { verdict, findings, summary: parsed.summary || "" };
 }
 
 export async function POST(req: NextRequest) {
