@@ -4,6 +4,7 @@
 import { NextRequest } from "next/server";
 import { complete, models } from "@/lib/llm";
 import { listAgents, withPerStyleScores, pickWinner } from "@/lib/registry";
+import { verifyAddresses, cvConfigured } from "@/lib/cleanverse";
 import { STYLES } from "@/lib/styles";
 import type { Style } from "@/lib/types";
 
@@ -160,9 +161,39 @@ removing a claim unless the requested change was about a claim),
   return streamText(async function* () {
     yield `▸ ${pitches.length} pitches in. Scoring fit against the brief…\n`;
     const agents = await withPerStyleScores(await listAgents(), inferredStyle);
-    const winner = pickWinner(agents);
-    yield `▸ Cross-checking on-chain track records for ${inferredStyle} (paid jobs only):\n`;
-    for (const a of agents) {
+
+    // ── COMPLIANCE GATE (CCP) — verify each candidate's A-Pass BEFORE hiring ──
+    // Only KYC-verified A-Pass holders are hireable. Gate ONLY when we can actually
+    // distinguish (some verified AND some unverified); if Cleanverse is down/unconfigured
+    // (statuses "unavailable") we don't gate — zero-regression.
+    let eligible = agents;
+    let gatedOut: string[] = [];
+    if (cvConfigured()) {
+      let vmap: Record<string, { status?: string }> = {};
+      try {
+        vmap = await verifyAddresses(agents.map((a) => a.payoutAddress));
+      } catch {
+        vmap = {};
+      }
+      const statusOf = (a: (typeof agents)[number]) => vmap[a.payoutAddress.toLowerCase()]?.status;
+      const verified = agents.filter((a) => statusOf(a) === "verified");
+      const unverified = agents.filter((a) => statusOf(a) === "unverified");
+      yield `▸ Compliance gate — verifying each agent's A-Pass identity before hiring (Cleanverse):\n`;
+      for (const a of agents) {
+        const s = statusOf(a);
+        const mark = s === "verified" ? "✓ A-Pass verified" : s === "unverified" ? "✗ UNVERIFIED — cannot be hired" : "· identity check unavailable";
+        yield `    ${a.name.padEnd(15)} ${mark}\n`;
+      }
+      if (verified.length > 0 && unverified.length > 0) {
+        eligible = verified;
+        gatedOut = unverified.map((a) => a.name);
+        yield `▸ ${gatedOut.join(", ")} excluded from hire — only KYC-verified A-Pass holders are eligible.\n`;
+      }
+    }
+
+    const winner = pickWinner(eligible);
+    yield `▸ Cross-checking on-chain track records for ${inferredStyle} among eligible agents (paid jobs only):\n`;
+    for (const a of eligible) {
       const ps = a.perStyleScore ?? 0;
       const note = ps > 0 ? `★${ps.toFixed(2)} in-specialty` : `no paid ${inferredStyle} jobs on record`;
       yield `    ${a.name.padEnd(15)} ★${a.reputation.score.toFixed(2)} overall · ${note}\n`;
@@ -185,8 +216,9 @@ record. Styles pitched: ${pitches.map((p) => p.style + (p.status === "fallback" 
     }
     yield "▸ Pitch-by-pitch read:\n" + narration.trim() + "\n▸ Decision locked.";
     yield `\n${SENTINEL}` + JSON.stringify({
-      criteria: `best per-style (${inferredStyle}) on-chain track record, then total paid jobs`,
+      criteria: `A-Pass verified + best per-style (${inferredStyle}) on-chain track record`,
       selectedAgentId: winner.agentId,
+      gatedOut,
     });
   });
 }

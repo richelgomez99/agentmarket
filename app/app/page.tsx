@@ -583,11 +583,15 @@ export default function Home() {
       // ── stage "evaluate": pitch fit + per-style on-chain track records (with retry) ──
       setPhase("evaluating");
       say("orchestrator", "Hiring Agent", "All pitches in. Scoring brand fit and cross-checking on-chain track records…");
-      const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string }>(
+      const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string; gatedOut?: string[] }>(
         await postOrchestrate({ stage: "evaluate", brief: briefText, inferredStyle: style, pitches: pitchStatuses })
       );
       if (id !== runId.current) return;
       setReasoning(evald.text);
+      // compliance gate payoff: surface any agent blocked from hire for lacking an A-Pass
+      if (evald.result.gatedOut && evald.result.gatedOut.length > 0) {
+        say("orchestrator", "Hiring Agent", `⛔ Compliance gate — ${evald.result.gatedOut.join(", ")} blocked from hire: no verified A-Pass. Only KYC-verified agents are eligible.`);
+      }
       const winner = open.result.candidates.find((a) => a.agentId === evald.result.selectedAgentId);
       const winnerStyle = winner?.style ?? style;
       // let the reasoning typewriter play, then the HIRED moment
