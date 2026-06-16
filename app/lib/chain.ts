@@ -39,6 +39,10 @@ export const reputationAbi = parseAbi([
   // NO signature-auth param (current canonical form; the uint8-score+feedbackAuth form is deprecated)
   "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
   "function getSummary(uint256 agentId, address[] clientAddresses, string tag1, string tag2) view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
+  // Individual feedback reads (no log-scan; sidesteps the getLogs RPC cap). index is 1-based.
+  "function getClients(uint256 agentId) view returns (address[])",
+  "function getLastIndex(uint256 agentId, address client) view returns (uint64)",
+  "function readFeedback(uint256 agentId, address client, uint64 index) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bytes32 feedbackHash)",
   "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
 ]);
 

@@ -7,7 +7,8 @@ import type { Agent } from "@/lib/types";
 import { STYLE_META, truncAddr } from "./shared";
 
 type Breakdown = { style: keyof typeof STYLE_META; label: string; count: number; score: number };
-type Data = { breakdown: Breakdown[]; registryUrl?: string; identityUrl?: string; clientUrl?: string };
+type Review = { index: number; score: number; tag1: string; tag2: string; sealed: boolean };
+type Data = { breakdown: Breakdown[]; reviews?: Review[]; registryUrl?: string; identityUrl?: string; clientUrl?: string };
 
 const EXPLORER = "https://testnet.monadexplorer.com";
 
@@ -17,7 +18,7 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
     let live = true;
     fetch(`/api/agent-reviews?agentId=${agent.agentId}`)
       .then((r) => r.json())
-      .then((d) => live && setData({ breakdown: d.breakdown ?? [], registryUrl: d.registryUrl, identityUrl: d.identityUrl, clientUrl: d.clientUrl }))
+      .then((d) => live && setData({ breakdown: d.breakdown ?? [], reviews: d.reviews ?? [], registryUrl: d.registryUrl, identityUrl: d.identityUrl, clientUrl: d.clientUrl }))
       .catch(() => live && setData({ breakdown: [] }));
     return () => {
       live = false;
@@ -144,6 +145,32 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
               })}
             </ul>
           )}
+          {data && data.reviews && data.reviews.length > 0 ? (
+            <div className="mt-4">
+              <div className="mb-2 font-mono text-[10px] font-medium tracking-[0.2em] text-zinc-500">RECENT RATINGS · ON-CHAIN</div>
+              <ul className="flex flex-col gap-1.5">
+                {data.reviews.map((r) => {
+                  const label = STYLE_META[r.tag1 as keyof typeof STYLE_META]?.label ?? r.tag1;
+                  return (
+                    <li key={r.index} className="flex items-center justify-between gap-3 rounded-md border border-white/[0.05] bg-white/[0.015] px-3 py-1.5">
+                      <span className="flex items-center gap-2">
+                        <span className="flex items-center gap-1 font-mono text-[12px] font-bold text-emerald-300">
+                          <Star size={10} fill="currentColor" /> {r.score.toFixed(1)}
+                        </span>
+                        <span className="font-mono text-[9.5px] tracking-[0.1em] text-zinc-500">{label}</span>
+                      </span>
+                      <span className="flex items-center gap-2 font-mono text-[10px] text-zinc-600">
+                        {r.sealed ? (
+                          <span className="text-cyan-300/70" title="deliverable hash sealed on-chain">sealed</span>
+                        ) : null}
+                        job #{r.index}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : null}
           <p className="mt-3 text-[11px] leading-relaxed text-zinc-600">
             Every rating is bound to a completed, paid job and written by the paying client — the registry rejects self-feedback.
           </p>
