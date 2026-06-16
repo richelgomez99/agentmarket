@@ -420,7 +420,7 @@ export default function Home() {
                 const fee: Payment = await feeRes.json();
                 if (id !== runId.current) return;
                 setEvents((prev) => [
-                  { label: `Revision fee · $0.01 USDC → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
+                  { label: `Revision fee · $0.01 ${fee.path === "ausdc-transfer" ? "aUSDC" : "USDC"} → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
                   ...prev,
                 ]);
                 await sayLive(agentName, agentStyle, `The client just paid your $0.01 revision fee via ${fee.path}. Confirm and start revising.`, `Fee received (${fee.path}). Revising now…`, { sync: true });
@@ -461,12 +461,13 @@ export default function Home() {
         if (!res.ok) throw new Error("pay failed");
         const p: Payment = await res.json();
         if (id !== runId.current) return;
+        const asset = p.path === "ausdc-transfer" ? "aUSDC" : "USDC";
         setPayment(p);
         setEvents((prev) => [
-          { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
+          { label: `Payment · $${p.amountUsd.toFixed(2)} ${asset} → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
           ...prev,
         ]);
-        await sayLive(agentName, agentStyle, `The client just paid you $0.01 USDC for the job via ${p.path}, settled on-chain. React briefly, in character.`, PERSONAS[agentStyle].paid(p.path), { sync: true });
+        await sayLive(agentName, agentStyle, `The client just paid you $${p.amountUsd.toFixed(2)} ${asset}${p.path === "ausdc-transfer" ? " (compliant A-Token)" : ""} for the job, settled on-chain. React briefly, in character.`, PERSONAS[agentStyle].paid(p.path), { sync: true });
       } catch {
         if (id !== runId.current) return;
         setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));

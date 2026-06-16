@@ -21,6 +21,7 @@ export const CHAIN_ID = 10143 as const;
 export const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address;
 export const REPUTATION_REGISTRY = "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address;
 export const USDC = "0x534b2f3A21130d7a60830c2Df862319e593943A3" as Address; // 6 decimals
+export const AUSDC = "0xaC0893567D43C3E7e6e35a72803df05416C1f20D" as Address; // Cleanverse aUSDC — compliant A-Token, 6dp (C2)
 export const EXPLORER = "https://testnet.monadexplorer.com";
 
 export const explorerTx = (hash: string) => `${EXPLORER}/tx/${hash}`;

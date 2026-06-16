@@ -14,7 +14,13 @@ export default function PaymentPanel({
   onDownload?: () => void;
 }) {
   const pathLabel =
-    payment?.path === "x402" ? "x402 · HTTP-402 micropayment" : payment?.path === "usdc-transfer" ? "Direct USDC transfer" : "Native MON transfer";
+    payment?.path === "ausdc-transfer"
+      ? "aUSDC · compliant A-Token (clean settlement)"
+      : payment?.path === "x402"
+      ? "x402 · HTTP-402 micropayment"
+      : payment?.path === "usdc-transfer"
+      ? "Direct USDC transfer"
+      : "Native MON transfer";
   return (
     <PanelShell
       title="PAYMENT"

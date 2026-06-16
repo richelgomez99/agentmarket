@@ -49,7 +49,7 @@ export type DesignOutput = {
 };
 
 export type Payment = {
-  path: "x402" | "usdc-transfer" | "mon-transfer";
+  path: "ausdc-transfer" | "x402" | "usdc-transfer" | "mon-transfer";
   txHash: string;
   explorerUrl: string;
   status: "pending" | "settled" | "failed";
