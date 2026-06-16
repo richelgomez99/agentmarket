@@ -1,6 +1,6 @@
 "use client";
 // From the design handoff (specs/001-agentmarket/design) — presentational only.
-import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink, Download } from "lucide-react";
+import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink, Download, FileCheck2 } from "lucide-react";
 import type { Payment } from "@/lib/types";
 import { PanelShell, truncHash } from "./shared";
 
@@ -8,10 +8,12 @@ export default function PaymentPanel({
   payment,
   awaitingAccept, // optional flourish: HTTP 402 received, reviewing work
   onDownload, // paid? the deliverable is yours — download the built page
+  onDownloadReport, // C3: download the per-job compliance record
 }: {
   payment?: Payment;
   awaitingAccept?: boolean;
   onDownload?: () => void;
+  onDownloadReport?: () => void;
 }) {
   const pathLabel =
     payment?.path === "ausdc-transfer"
@@ -91,6 +93,15 @@ export default function PaymentPanel({
                 className="mt-2.5 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg bg-emerald-400/15 px-3 py-2 font-display text-[12.5px] font-bold text-emerald-300 transition hover:bg-emerald-400/25"
               >
                 <Download size={14} /> DOWNLOAD DELIVERABLE
+              </button>
+            ) : null}
+            {payment.status === "settled" && onDownloadReport ? (
+              <button
+                onClick={onDownloadReport}
+                title="Per-job audit record: A-Pass parties, aUSDC settlement, sealed deliverable hash, on-chain rating"
+                className="mt-2 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg border border-cyan-400/25 bg-cyan-400/[0.06] px-3 py-2 font-display text-[12.5px] font-bold text-cyan-300 transition hover:border-cyan-400/50 hover:bg-cyan-400/[0.12]"
+              >
+                <FileCheck2 size={14} /> DOWNLOAD COMPLIANCE REPORT
               </button>
             ) : null}
           </div>

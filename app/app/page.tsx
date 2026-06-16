@@ -98,7 +98,7 @@ export default function Home() {
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [payment, setPayment] = useState<Payment | undefined>();
   const [events, setEvents] = useState<ExplorerEvent[]>([]);
-  const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
+  const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number; deliverableHash?: string } | undefined>();
   const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const [inspect, setInspect] = useState<InspectState | undefined>();
@@ -197,6 +197,38 @@ export default function Home() {
 
   const agents: Agent[] = candidates.map((a) => ({ ...a, hired: a.style === hiredStyle }));
   const hiredAgent = agents.find((a) => a.hired);
+
+  // C3 audit: assemble + download the per-job compliance record (A-Pass parties, aUSDC
+  // settlement, sealed deliverable hash, on-chain rating) from /api/audit.
+  const downloadComplianceReport = async () => {
+    if (!payment || !hiredAgent) return;
+    try {
+      const res = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          payeeAddress: hiredAgent.payoutAddress,
+          name: hiredAgent.name,
+          agentId: hiredAgent.agentId,
+          paymentTx: payment.txHash,
+          amountUsd: payment.amountUsd,
+          path: payment.path,
+          deliverableHash: rating?.deliverableHash,
+          ratingTx: rating?.txHash,
+          brief,
+        }),
+      });
+      const report = await res.json();
+      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `agentmarket-compliance-job-${hiredAgent.agentId}.json`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      /* best-effort download */
+    }
+  };
 
   // ?autorun: kick off the full demo automatically (used for the backup recording)
   const runRef = useRef<() => void>();
@@ -488,9 +520,9 @@ export default function Home() {
           body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490, deliverableHtml: deliverableRef.current }),
         });
         if (!res.ok) throw new Error("feedback failed");
-        const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
+        const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number }; deliverableHash?: string } = await res.json();
         if (id !== runId.current) return;
-        setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore });
+        setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore, deliverableHash: d.deliverableHash });
         setCandidates((prev) => prev.map((a) => (a.agentId === agent.agentId ? { ...a, reputation: d.reputation } : a)));
         setEvents((prev) => [
           {
@@ -756,7 +788,7 @@ export default function Home() {
         {/* right: the proof rail */}
         <div className="flex flex-col gap-5">
           <div className="-mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">ON-CHAIN PROOF</div>
-          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} onDownload={phase === "done" || payment?.status === "settled" ? downloadDeliverable : undefined} />
+          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} onDownload={phase === "done" || payment?.status === "settled" ? downloadDeliverable : undefined} onDownloadReport={payment?.status === "settled" ? downloadComplianceReport : undefined} />
           {hiredAgent ? (
             <ReputationPanel agent={hiredAgent} previousScore={rating?.previousScore} txHash={rating?.txHash} explorerUrl={rating?.explorerUrl} />
           ) : null}
