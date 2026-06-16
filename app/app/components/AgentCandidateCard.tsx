@@ -42,9 +42,6 @@ export default function AgentCandidateCard({
           <BadgeCheck size={11} /> HIRED
         </div>
       ) : null}
-      <div className="absolute left-3 top-3 z-10">
-        <VerifiedBadge verification={agent.verification} />
-      </div>
       <div className="flex items-start gap-3">
         <div className={"flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border " + (selected ? "border-cyan-400/40 bg-cyan-400/10 text-cyan-300" : "border-white/10 bg-white/[0.04] text-zinc-400")}>
           <Bot size={19} />
@@ -60,6 +57,7 @@ export default function AgentCandidateCard({
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <span className={"rounded border px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.12em] " + meta.chip}>{meta.label}</span>
             <span className="font-mono text-[10.5px] text-zinc-500">{agent.reputation.count} paid jobs</span>
+            <VerifiedBadge verification={agent.verification} />
           </div>
         </div>
       </div>
