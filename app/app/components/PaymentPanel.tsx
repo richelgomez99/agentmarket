@@ -56,7 +56,7 @@ export default function PaymentPanel({
                 <div className="font-mono text-[10px] tracking-[0.2em] text-zinc-500">AMOUNT</div>
                 <div className={"mt-0.5 font-mono text-[30px] font-bold leading-none tracking-tight " + (payment.status === "settled" ? "text-emerald-400" : "text-zinc-100")}>
                   ${payment.amountUsd.toFixed(2)}
-                  <span className="ml-1.5 text-[13px] font-medium text-zinc-500">USDC</span>
+                  <span className="ml-1.5 text-[13px] font-medium text-zinc-500">{payment.path === "ausdc-transfer" ? "aUSDC" : "USDC"}</span>
                 </div>
               </div>
               {payment.status === "settled" ? (
