@@ -599,7 +599,15 @@ export default function Home() {
       if (id !== runId.current) return;
       setHiredStyle(winnerStyle);
       if (winner) {
-        say("orchestrator", "Hiring Agent", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
+        // when the gate forced a substitute (the inferred-style specialist was blocked), say so
+        const gatedSub = (evald.result.gatedOut?.length ?? 0) > 0 && winnerStyle !== style;
+        say(
+          "orchestrator",
+          "Hiring Agent",
+          gatedSub
+            ? `@${winner.name} — you're hired. The ${style} specialist wasn't A-Pass verified, so you're the strongest VERIFIED agent for the job. The full build is yours.`
+            : `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`
+        );
         const winnerVerification = candidates.find((c) => c.agentId === winner.agentId)?.verification;
         if (winnerVerification && winnerVerification.status !== "unavailable") {
           say(
