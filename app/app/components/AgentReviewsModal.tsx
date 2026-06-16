@@ -9,6 +9,9 @@ import { STYLE_META, truncAddr } from "./shared";
 type Breakdown = { style: keyof typeof STYLE_META; label: string; count: number; score: number };
 type Data = { breakdown: Breakdown[]; registryUrl?: string; identityUrl?: string; clientUrl?: string };
 
+const EXPLORER = "https://testnet.monadexplorer.com";
+const APASS_CONTRACT = "0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9"; // Cleanverse A-Pass registry (Monad)
+
 export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; onClose: () => void }) {
   const [data, setData] = useState<Data | null>(null);
   useEffect(() => {
@@ -69,9 +72,26 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
                   <ShieldAlert size={13} /> Unverified — KYC pending
                 </span>
               )}
-              <span className="font-mono text-[11px] text-zinc-400" title={agent.payoutAddress}>{truncAddr(agent.payoutAddress)}</span>
+              <a
+                href={`${EXPLORER}/address/${agent.payoutAddress}`}
+                target="_blank"
+                rel="noreferrer"
+                title={agent.payoutAddress}
+                className="flex items-center gap-1 font-mono text-[11px] text-cyan-300/90 transition hover:text-cyan-200"
+              >
+                {truncAddr(agent.payoutAddress)} <ExternalLink size={10} />
+              </a>
             </div>
-            {v.status === "unverified" && v.onboardUrl ? (
+            {v.status === "verified" ? (
+              <a
+                href={`${EXPLORER}/address/${APASS_CONTRACT}`}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-400/[0.25] bg-emerald-400/[0.06] px-3 py-2 font-mono text-[11px] tracking-[0.1em] text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/[0.1]"
+              >
+                VIEW A-PASS ON MONAD <ExternalLink size={12} />
+              </a>
+            ) : v.status === "unverified" && v.onboardUrl ? (
               <a
                 href={v.onboardUrl}
                 target="_blank"
