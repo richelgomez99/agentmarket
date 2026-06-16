@@ -167,11 +167,34 @@ export function mapApassVerdict(r: CvResponse<ApassInner>): AgentVerification {
   };
 }
 
-/** Verify a single wallet's A-Pass against aUSDC on Monad; never throws (maps errors to "unavailable"). */
+/** Map a query_apass record into the compact, display-ready ApassRecord (concrete proof). */
+function mapApassRecord(r: CvResponse): import("./types").ApassRecord | undefined {
+  if (!isOk(r) || !r.data || typeof r.data !== "object") return undefined;
+  const d = r.data as { cvRecordId?: string; tier?: string; currentKycHash?: string; expirationTime?: number; status?: number };
+  const kyc = typeof d.currentKycHash === "string" ? d.currentKycHash : "";
+  return {
+    recordId: d.cvRecordId ? String(d.cvRecordId) : undefined,
+    tier: d.tier !== undefined ? String(d.tier) : undefined,
+    kycHashShort: kyc && !/^0x0+$/.test(kyc) ? `${kyc.slice(0, 10)}…${kyc.slice(-4)}` : undefined,
+    expiresAt: typeof d.expirationTime === "number" ? d.expirationTime : undefined,
+    active: d.status === 1,
+  };
+}
+
+/** Verify a single wallet's A-Pass against aUSDC on Monad; never throws (maps errors to "unavailable").
+ *  For verified wallets, also pulls the on-chain A-Pass record (query_apass) as concrete proof. */
 export async function getWalletVerification(address: string): Promise<AgentVerification> {
   try {
     const r = await cvVerifyApass(address, AUSDC_MONAD, CV_CHAIN);
-    return mapApassVerdict(r as CvResponse<ApassInner>);
+    const verdict = mapApassVerdict(r as CvResponse<ApassInner>);
+    if (verdict.status === "verified") {
+      try {
+        verdict.record = mapApassRecord(await cvQueryApass(address));
+      } catch {
+        /* record is best-effort; the badge stands on the verify_apass verdict alone */
+      }
+    }
+    return verdict;
   } catch {
     return { verified: false, status: "unavailable", checkedAt: Date.now() };
   }

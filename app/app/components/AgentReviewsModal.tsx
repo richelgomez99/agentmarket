@@ -10,7 +10,6 @@ type Breakdown = { style: keyof typeof STYLE_META; label: string; count: number;
 type Data = { breakdown: Breakdown[]; registryUrl?: string; identityUrl?: string; clientUrl?: string };
 
 const EXPLORER = "https://testnet.monadexplorer.com";
-const APASS_CONTRACT = "0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9"; // Cleanverse A-Pass registry (Monad)
 
 export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; onClose: () => void }) {
   const [data, setData] = useState<Data | null>(null);
@@ -83,14 +82,26 @@ export default function AgentReviewsModal({ agent, onClose }: { agent: Agent; on
               </a>
             </div>
             {v.status === "verified" ? (
-              <a
-                href={`${EXPLORER}/address/${APASS_CONTRACT}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-emerald-400/[0.25] bg-emerald-400/[0.06] px-3 py-2 font-mono text-[11px] tracking-[0.1em] text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/[0.1]"
-              >
-                VIEW A-PASS ON MONAD <ExternalLink size={12} />
-              </a>
+              <div className="mt-3">
+                {v.record ? (
+                  <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 rounded-lg border border-emerald-400/[0.18] bg-emerald-400/[0.05] px-3 py-2.5 font-mono text-[10.5px] text-emerald-200/90">
+                    {v.record.recordId ? <span className="font-bold">A-Pass #{v.record.recordId}</span> : <span className="font-bold">A-Pass</span>}
+                    {v.record.tier ? <span className="text-emerald-300/70">· Tier {v.record.tier}</span> : null}
+                    {v.record.active ? <span className="text-emerald-300/70">· Active</span> : null}
+                    {v.record.kycHashShort ? <span className="text-emerald-300/70" title="bank-verified KYC hash bound on-chain">· KYC {v.record.kycHashShort}</span> : null}
+                    {v.record.expiresAt ? <span className="text-emerald-300/70">· exp {new Date(v.record.expiresAt * 1000).toLocaleDateString(undefined, { year: "numeric", month: "short" })}</span> : null}
+                  </div>
+                ) : null}
+                <a
+                  href={`${EXPLORER}/address/${agent.payoutAddress}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  title="The verified wallet holds the A-Pass on Monad"
+                  className="mt-2 flex items-center justify-center gap-2 rounded-lg border border-emerald-400/[0.25] bg-emerald-400/[0.06] px-3 py-2 font-mono text-[11px] tracking-[0.1em] text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/[0.1]"
+                >
+                  VIEW VERIFIED WALLET ON MONAD <ExternalLink size={12} />
+                </a>
+              </div>
             ) : v.status === "unverified" && v.onboardUrl ? (
               <a
                 href={v.onboardUrl}
