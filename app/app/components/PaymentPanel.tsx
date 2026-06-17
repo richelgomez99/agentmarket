@@ -92,7 +92,7 @@ export default function PaymentPanel({
                 onClick={onDownload}
                 className="mt-2.5 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg bg-emerald-400/15 px-3 py-2 font-display text-[12.5px] font-bold text-emerald-300 transition hover:bg-emerald-400/25"
               >
-                <Download size={14} /> DOWNLOAD DELIVERABLE
+                <Download size={14} /> DOWNLOAD MOCKUP (HTML)
               </button>
             ) : null}
             {payment.status === "settled" && onDownloadReport ? (

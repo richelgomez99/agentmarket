@@ -164,7 +164,7 @@ export default function DesignPreviewGrid({
             <span className={"h-1.5 w-1.5 shrink-0 rounded-full " + STYLE_META[featured.style].dot}></span>
             <span className="truncate font-mono text-[10px] tracking-[0.18em] text-zinc-400">{STYLE_META[featured.style].label}</span>
             <span className="shrink-0 animate-pop-in rounded bg-cyan-400/15 px-1.5 py-0.5 font-mono text-[9px] font-bold tracking-[0.15em] text-cyan-300">
-              FULL BUILD · HIRED AGENT
+              FULL BUILD · DESIGN MOCKUP
             </span>
           </div>
           {statusChip(featured, true)}
