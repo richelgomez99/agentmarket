@@ -49,3 +49,6 @@ specs/Cleanverse*.pdf
 .lattice/.daemon/
 .lattice/locks/
 .lattice/sessions/
+
+# internal demo scripts — local only, never publish
+specs/**/DEMO-SCRIPT.md
