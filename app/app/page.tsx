@@ -219,10 +219,11 @@ export default function Home() {
         }),
       });
       const report = await res.json();
-      const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json" });
+      const html: string | undefined = report.certificateHtml;
+      const blob = new Blob([html ?? JSON.stringify(report, null, 2)], { type: html ? "text/html" : "application/json" });
       const a = document.createElement("a");
       a.href = URL.createObjectURL(blob);
-      a.download = `agentmarket-compliance-job-${hiredAgent.agentId}.json`;
+      a.download = `agentmarket-compliance-certificate-${hiredAgent.agentId}.${html ? "html" : "json"}`;
       a.click();
       URL.revokeObjectURL(a.href);
     } catch {
