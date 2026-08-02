@@ -1,0 +1,37 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "medium",
+  "created_at": "2026-06-17T02:00:22Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Upgrade /api/audit: fetch FULL A-Pass KYC records (cvRecordId, tier, full currentKycHash, expiry, status) for both parties via query_apass; add FATF Travel Rule data (originator=hiring client VASP, beneficiary=agent \u2014 name, wallet, A-Pass#, KYC hash, tier, verified) + transfer (aUSDC, contract, amount, tx, chain). Emit a self-contained, professionally-styled HTML COMPLIANCE CERTIFICATE (printable to PDF). Download button downloads the .html certificate instead of raw JSON. The institutional takeaway artifact.",
+  "done_at": "2026-06-17T02:40:31Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV9Q78QZ99VV55A49H2TRXYM",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV9MXR1NN9VR9JNSCYZGY01H",
+  "last_event_id": "ev_01KV9Q78VF0KVCNWZ4SE5GN1PP",
+  "last_status_changed_at": "2026-06-17T02:40:31Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-17",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "c3",
+    "audit"
+  ],
+  "title": "Institution-grade Compliance Certificate + Travel Rule",
+  "type": "task",
+  "updated_at": "2026-06-17T02:40:31Z",
+  "urgency": null
+}

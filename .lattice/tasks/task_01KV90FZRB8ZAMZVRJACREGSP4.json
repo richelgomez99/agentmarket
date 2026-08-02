@@ -1,0 +1,36 @@
+{
+  "assigned_to": "agent:claude-opus-4-architect",
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "medium",
+  "created_at": "2026-06-16T20:03:19Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Pay the hired (verified) agent in compliant aUSDC (A-Token 0xaC08\u20261f20D, 6dp) instead of plain USDC. Faucet aUSDC to CLIENT if needed; settle via the existing x402/transfer path (pay route). Surface 'aUSDC (compliant A-Token)' in the payment UI. Fallback to USDC if aUSDC unavailable.",
+  "done_at": "2026-06-16T22:06:18Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV97H533X6DCH7Y9V82D53J0",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV90FZRB8ZAMZVRJACREGSP4",
+  "last_event_id": "ev_01KV97H57HZRCZ70B58MF876VN",
+  "last_status_changed_at": "2026-06-16T22:06:18Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-15",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "c2"
+  ],
+  "title": "C2 \u2014 clean settlement: pay agents in aUSDC (A-Token)",
+  "type": "task",
+  "updated_at": "2026-06-16T22:06:18Z",
+  "urgency": null
+}

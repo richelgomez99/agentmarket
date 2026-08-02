@@ -1,0 +1,36 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "low",
+  "created_at": "2026-06-16T01:53:06Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Q3: make the A-Pass verification independently checkable on-chain. In AgentReviewsModal verified-identity row: make the wallet a clickable Monad explorer link, and add a VIEW A-PASS ON MONAD link to the A-Pass contract 0xbA82D189540CaC9DC6FF46B6837CaC1BFdEC58B9. Real on-chain proof (mint tx 0x1fefb9c7... confirmed at block 0x24b9141).",
+  "done_at": "2026-06-16T02:02:56Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV72B7NGPZ63GM6XQAQTFH1X",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV723QRPCR50524RZMZWQCEG",
+  "last_event_id": "ev_01KV72NQSMFKW67NA1DZKZR540",
+  "last_status_changed_at": "2026-06-16T02:02:56Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-9",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "enhancement"
+  ],
+  "title": "A-Pass explorer link in verified-identity modal row",
+  "type": "task",
+  "updated_at": "2026-06-16T02:02:56Z",
+  "urgency": null
+}

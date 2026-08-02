@@ -1,0 +1,37 @@
+{
+  "assigned_to": "agent:claude-opus-4-architect",
+  "branch_links": [],
+  "comment_count": 2,
+  "complexity": "medium",
+  "created_at": "2026-06-16T20:03:19Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Track 02 CCP pre-transaction check, enforced at HIRE (not payment, per operator). In orchestrate evaluate: verify each candidate's payout A-Pass (verifyAddresses); EXCLUDE definitively-unverified agents from winner selection (pickWinner among verified only). If Cleanverse unavailable (status unavailable, not unverified), do NOT gate (zero-regression). Narrate: unverified agents excluded for compliance, hire the best VERIFIED agent. Payoff: the unverified contrast agent (GlassAgent 1770) gets blocked from hire.",
+  "done_at": "2026-06-16T20:15:14Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV915SXJ7MKM162GFKBJJQ3E",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV90FZMBQVWEWBC8GMFN9WP2",
+  "last_event_id": "ev_01KV929RHA2V49TMJ8BKCN138M",
+  "last_status_changed_at": "2026-06-16T20:15:14Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-14",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "c3",
+    "compliance"
+  ],
+  "title": "Compliance gate at HIRE \u2014 verify A-Pass before hiring (CCP)",
+  "type": "task",
+  "updated_at": "2026-06-16T20:34:53Z",
+  "urgency": null
+}
