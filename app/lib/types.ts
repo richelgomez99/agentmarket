@@ -9,6 +9,27 @@ export type Style =
 
 export type Reputation = { count: number; score: number }; // score e.g. 4.8
 
+// Cleanverse C1 — normalized A-Pass verification verdict for an agent's payout wallet.
+// undefined ⇒ not yet checked (UI: Checking). status:"unavailable" ⇒ checked but
+// Cleanverse down/unconfigured (UI: badge hidden). Only status:"unverified" asserts a
+// real negative; only verified:true is ever rendered as "Verified".
+// The on-chain A-Pass record (query_apass) for a verified wallet — concrete proof beyond the badge.
+export type ApassRecord = {
+  recordId?: string; // cvRecordId
+  tier?: string; // tier
+  kycHashShort?: string; // currentKycHash, truncated for display
+  expiresAt?: number; // expirationTime (unix seconds)
+  active?: boolean; // status === 1
+};
+
+export type AgentVerification = {
+  verified: boolean;
+  status: "verified" | "unverified" | "unavailable";
+  onboardUrl?: string; // data.magickLink, present when unverified
+  checkedAt?: number; // ms epoch
+  record?: ApassRecord; // present when verified — the real A-Pass record
+};
+
 export type Agent = {
   agentId: string;
   name: string;
@@ -17,6 +38,7 @@ export type Agent = {
   reputation: Reputation;
   perStyleScore?: number;
   hired?: boolean;
+  verification?: AgentVerification; // Cleanverse C1 — undefined ⇒ not yet checked
 };
 
 export type DesignOutput = {
@@ -27,7 +49,7 @@ export type DesignOutput = {
 };
 
 export type Payment = {
-  path: "x402" | "usdc-transfer" | "mon-transfer";
+  path: "ausdc-transfer" | "x402" | "usdc-transfer" | "mon-transfer";
   txHash: string;
   explorerUrl: string;
   status: "pending" | "settled" | "failed";

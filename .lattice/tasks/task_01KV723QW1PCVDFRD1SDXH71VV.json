@@ -1,0 +1,36 @@
+{
+  "assigned_to": "agent:claude-opus-4-architect",
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "medium",
+  "created_at": "2026-06-16T01:53:06Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Point one demo agent to a fresh wallet with NO A-Pass so the rail shows real verified-vs-unverified contrast (amber UNVERIFIED badge) and exercises the unverified badge/modal states. Approach: generate/use a fresh unverified wallet; re-point one agent's payout OR register a demo agent; keep 4-style mapping intact. Honesty: real on-chain state, no faking.",
+  "done_at": "2026-06-16T12:16:25Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV85S232RHBPJSK0YX8CBX74",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV723QW1PCVDFRD1SDXH71VV",
+  "last_event_id": "ev_01KV85S26PDXZ21Q5KQ28WA0F3",
+  "last_status_changed_at": "2026-06-16T12:16:25Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-10",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "demo"
+  ],
+  "title": "Unverified contrast demo agent (Option 2)",
+  "type": "task",
+  "updated_at": "2026-06-16T12:16:25Z",
+  "urgency": null
+}

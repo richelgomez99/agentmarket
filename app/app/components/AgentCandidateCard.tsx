@@ -4,6 +4,7 @@
 import { Bot, Star, BadgeCheck, History } from "lucide-react";
 import type { Agent, Style } from "@/lib/types";
 import { STYLE_META, truncAddr } from "./shared";
+import VerifiedBadge from "./VerifiedBadge";
 
 export default function AgentCandidateCard({
   agent,
@@ -56,6 +57,7 @@ export default function AgentCandidateCard({
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
             <span className={"rounded border px-1.5 py-0.5 font-mono text-[9.5px] tracking-[0.12em] " + meta.chip}>{meta.label}</span>
             <span className="font-mono text-[10.5px] text-zinc-500">{agent.reputation.count} paid jobs</span>
+            <VerifiedBadge verification={agent.verification} />
           </div>
         </div>
       </div>

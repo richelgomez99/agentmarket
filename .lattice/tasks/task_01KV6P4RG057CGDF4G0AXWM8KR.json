@@ -1,0 +1,57 @@
+{
+  "assigned_to": {
+    "agent_type": "orchestrated",
+    "base_name": "cln-planner",
+    "framework": "claude-code",
+    "model": "claude-opus-4-8",
+    "name": "cln-planner-1",
+    "serial": 1,
+    "session": "sess_01KV6Q3FTDSB0J8PBFRS9ASK13"
+  },
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "low",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "GET /api/cleanverse/verify?addresses=... (nodejs). FR-003/004. New app/app/api/cleanverse/verify/route.ts. Parse comma-sep addresses (lowercase, validate 0x). !cvConfigured() => {available:false,results:{}} with ZERO network calls. Else verifyAddresses => {available:true,results}. Best-effort, never 5xx; per-address failures => unavailable. Atoken+chain are server constants. AC-1: live CLIENT+OWNER => unverified+magickLink. Depends on CLN-2.",
+  "done_at": "2026-06-15T22:51:06Z",
+  "evidence_refs": [
+    {
+      "id": "art_01KV6QBKQ0277T0AEVC76PSVHY",
+      "role": "plan-review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "art_01KV6QGQ94BCVKHYM9GQ9PT6NE",
+      "role": "review",
+      "source_type": "artifact"
+    }
+  ],
+  "id": "task_01KV6P4RG057CGDF4G0AXWM8KR",
+  "last_event_id": "ev_01KV6QPZ7VVV36C3H9F9SBH6NP",
+  "last_status_changed_at": "2026-06-15T22:51:06Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-06-15T22:23:58Z",
+      "created_by": "agent:claude-opus-4-architect",
+      "note": null,
+      "target_task_id": "task_01KV6P4RCQ7X2NKHS06QH69H4Z",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-3",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "Cleanverse verify API route",
+  "type": "task",
+  "updated_at": "2026-06-15T22:51:22Z",
+  "urgency": null
+}

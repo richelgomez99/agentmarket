@@ -1,6 +1,6 @@
 "use client";
 // From the design handoff (specs/001-agentmarket/design) — presentational only.
-import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink, Download } from "lucide-react";
+import { Wallet, CheckCircle2, Loader2, AlertTriangle, ExternalLink, Download, FileCheck2 } from "lucide-react";
 import type { Payment } from "@/lib/types";
 import { PanelShell, truncHash } from "./shared";
 
@@ -8,13 +8,21 @@ export default function PaymentPanel({
   payment,
   awaitingAccept, // optional flourish: HTTP 402 received, reviewing work
   onDownload, // paid? the deliverable is yours — download the built page
+  onDownloadReport, // C3: download the per-job compliance record
 }: {
   payment?: Payment;
   awaitingAccept?: boolean;
   onDownload?: () => void;
+  onDownloadReport?: () => void;
 }) {
   const pathLabel =
-    payment?.path === "x402" ? "x402 · HTTP-402 micropayment" : payment?.path === "usdc-transfer" ? "Direct USDC transfer" : "Native MON transfer";
+    payment?.path === "ausdc-transfer"
+      ? "aUSDC · compliant A-Token (clean settlement)"
+      : payment?.path === "x402"
+      ? "x402 · HTTP-402 micropayment"
+      : payment?.path === "usdc-transfer"
+      ? "Direct USDC transfer"
+      : "Native MON transfer";
   return (
     <PanelShell
       title="PAYMENT"
@@ -48,7 +56,7 @@ export default function PaymentPanel({
                 <div className="font-mono text-[10px] tracking-[0.2em] text-zinc-500">AMOUNT</div>
                 <div className={"mt-0.5 font-mono text-[30px] font-bold leading-none tracking-tight " + (payment.status === "settled" ? "text-emerald-400" : "text-zinc-100")}>
                   ${payment.amountUsd.toFixed(2)}
-                  <span className="ml-1.5 text-[13px] font-medium text-zinc-500">USDC</span>
+                  <span className="ml-1.5 text-[13px] font-medium text-zinc-500">{payment.path === "ausdc-transfer" ? "aUSDC" : "USDC"}</span>
                 </div>
               </div>
               {payment.status === "settled" ? (
@@ -84,7 +92,16 @@ export default function PaymentPanel({
                 onClick={onDownload}
                 className="mt-2.5 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg bg-emerald-400/15 px-3 py-2 font-display text-[12.5px] font-bold text-emerald-300 transition hover:bg-emerald-400/25"
               >
-                <Download size={14} /> DOWNLOAD DELIVERABLE
+                <Download size={14} /> DOWNLOAD MOCKUP (HTML)
+              </button>
+            ) : null}
+            {payment.status === "settled" && onDownloadReport ? (
+              <button
+                onClick={onDownloadReport}
+                title="Per-job audit record: A-Pass parties, aUSDC settlement, sealed deliverable hash, on-chain rating"
+                className="mt-2 flex w-full animate-pop-in items-center justify-center gap-2 rounded-lg border border-cyan-400/25 bg-cyan-400/[0.06] px-3 py-2 font-display text-[12.5px] font-bold text-cyan-300 transition hover:border-cyan-400/50 hover:bg-cyan-400/[0.12]"
+              >
+                <FileCheck2 size={14} /> DOWNLOAD COMPLIANCE REPORT
               </button>
             ) : null}
           </div>

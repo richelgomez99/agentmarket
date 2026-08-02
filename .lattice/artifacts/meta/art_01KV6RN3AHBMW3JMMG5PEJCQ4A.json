@@ -1,0 +1,19 @@
+{
+  "created_at": "2026-06-15T23:07:49Z",
+  "created_by": "agent:cln-validate-1",
+  "custom_fields": {},
+  "id": "art_01KV6RN3AHBMW3JMMG5PEJCQ4A",
+  "model": null,
+  "payload": {
+    "content_type": "text/plain",
+    "file": "art_01KV6RN3AHBMW3JMMG5PEJCQ4A.txt",
+    "size_bytes": 5350
+  },
+  "schema_version": 1,
+  "sensitive": false,
+  "summary": null,
+  "tags": [],
+  "title": "cv-c1-validation-evidence.txt",
+  "token_usage": null,
+  "type": "file"
+}

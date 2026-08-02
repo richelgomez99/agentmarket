@@ -3,13 +3,13 @@
 // facilitator verifies + submits it on-chain (facilitator pays gas). Verified live:
 // facilitator supports eip155:10143 / exact / x402Version 2 (GET /supported, 2026-06-09).
 import { parseAbi, type Address, type Hex } from "viem";
-import { USDC, publicClient, walletFor, explorerTx } from "./chain";
+import { USDC, AUSDC, publicClient, walletFor, explorerTx } from "./chain";
 
 const FACILITATOR = "https://x402-facilitator.molandak.org";
 const NETWORK = "eip155:10143";
 
 export type PayResult = {
-  path: "x402" | "usdc-transfer" | "mon-transfer";
+  path: "ausdc-transfer" | "x402" | "usdc-transfer" | "mon-transfer";
   txHash: string;
   explorerUrl: string;
   status: "settled" | "failed";
@@ -114,9 +114,31 @@ export async function payWithX402(payout: Address, amountUsd: number): Promise<P
   return { path: "x402", txHash: tx, explorerUrl: explorerTx(tx), status: "settled", amountUsd };
 }
 
-/** x402 first; fall back to direct USDC transfer. Never throws unless BOTH fail. */
+/** Compliant aUSDC (A-Token) transfer C -> payout (C2 clean settlement). Both parties are A-Pass
+ *  holders (the hire gate guarantees the payee; CLIENT is verified). The on-chain compliance
+ *  hooks are gas-heavy, so we set a generous limit (Monad charges on gas_limit). */
+export async function payAusdc(payout: Address, amountUsd: number): Promise<PayResult> {
+  const { client } = walletFor(clientKey());
+  const value = BigInt(Math.round(amountUsd * 1_000_000)); // aUSDC 6 decimals
+  const hash = await client.writeContract({
+    address: AUSDC,
+    abi: parseAbi(["function transfer(address to, uint256 amount) returns (bool)"]),
+    functionName: "transfer",
+    args: [payout, value],
+    gas: BigInt(1_200_000),
+  });
+  await publicClient.waitForTransactionReceipt({ hash });
+  return { path: "ausdc-transfer", txHash: hash, explorerUrl: explorerTx(hash), status: "settled", amountUsd };
+}
+
+/** Clean settlement first: aUSDC (compliant A-Token) → x402 (USDC) → direct USDC. */
 export async function pay(payout: Address, amountUsd: number, forceFallback = false): Promise<PayResult> {
   if (!forceFallback) {
+    try {
+      return await payAusdc(payout, amountUsd); // C2: clean, compliant settlement
+    } catch (e) {
+      console.warn("[pay] aUSDC settlement failed, falling back to USDC:", (e as Error).message);
+    }
     try {
       return await payWithX402(payout, amountUsd);
     } catch (e) {

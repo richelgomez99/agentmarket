@@ -20,6 +20,7 @@ import { STYLES, styleById } from "@/lib/styles";
 import { PERSONAS } from "@/lib/personas";
 import { UGLY_PAGE } from "@/lib/uglyPage";
 import { guardHtml, salvageHtml } from "@/lib/htmlGuard";
+import { inspectDeliverable, applyResponsiveFix } from "@/lib/qa";
 import type { Agent, DesignOutput, ExplorerEvent, Payment, Style } from "@/lib/types";
 
 type Phase = "idle" | "pitching" | "evaluating" | "building" | "inspecting" | "awaiting" | "paying" | "rating" | "done";
@@ -97,7 +98,7 @@ export default function Home() {
   const [buildElapsed, setBuildElapsed] = useState(0);
   const [payment, setPayment] = useState<Payment | undefined>();
   const [events, setEvents] = useState<ExplorerEvent[]>([]);
-  const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number } | undefined>();
+  const [rating, setRating] = useState<{ txHash: string; explorerUrl: string; previousScore: number; deliverableHash?: string } | undefined>();
   const [comms, setComms] = useState<ThreadMsg[]>([]);
   const [appliedCount, setAppliedCount] = useState(0);
   const [inspect, setInspect] = useState<InspectState | undefined>();
@@ -152,16 +153,83 @@ export default function Home() {
     [say]
   );
 
+  // Cleanverse C1 — progressive A-Pass verification (OFF the critical path).
+  // Fire-and-forget after candidates load: fetch per-address verification and merge into
+  // agent state by lowercased payoutAddress. Tolerates available:false, network error, or a
+  // slow response with zero impact on render/timing. With CLEANVERSE_* unset the route returns
+  // available:false and this is a pure no-op (parity with 001-agentmarket).
+  const mergeVerification = useCallback((fromAgents: Agent[]) => {
+    const unique = Array.from(
+      new Set(fromAgents.map((a) => a.payoutAddress?.toLowerCase()).filter((a): a is string => !!a))
+    );
+    if (!unique.length) return;
+    void (async () => {
+      try {
+        const res = await fetch(`/api/cleanverse/verify?addresses=${encodeURIComponent(unique.join(","))}`);
+        if (!res.ok) return;
+        const d = (await res.json()) as { available?: boolean; results?: Record<string, Agent["verification"]> };
+        if (!d.available || !d.results) return;
+        const results = d.results;
+        setCandidates((prev) =>
+          prev.map((a) => {
+            const v = a.payoutAddress ? results[a.payoutAddress.toLowerCase()] : undefined;
+            return v ? { ...a, verification: v } : a;
+          })
+        );
+      } catch {
+        /* progressive enhancement — never block or surface the failure */
+      }
+    })();
+  }, []);
+
   // Idle market rail: real agents + on-chain reputation, read at mount
   useEffect(() => {
     fetch("/api/orchestrate")
       .then((r) => r.json())
-      .then((d) => setCandidates((prev) => (prev.length ? prev : d.candidates ?? [])))
+      .then((d) => {
+        const loaded: Agent[] = d.candidates ?? [];
+        setCandidates((prev) => (prev.length ? prev : loaded));
+        // Progressive enhancement, fire-and-forget — off the critical path.
+        if (loaded.length) mergeVerification(loaded);
+      })
       .catch(() => {});
-  }, []);
+  }, [mergeVerification]);
 
   const agents: Agent[] = candidates.map((a) => ({ ...a, hired: a.style === hiredStyle }));
   const hiredAgent = agents.find((a) => a.hired);
+
+  // C3 audit: assemble + download the per-job compliance record (A-Pass parties, aUSDC
+  // settlement, sealed deliverable hash, on-chain rating) from /api/audit.
+  const downloadComplianceReport = async () => {
+    if (!payment || !hiredAgent) return;
+    try {
+      const res = await fetch("/api/audit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          payeeAddress: hiredAgent.payoutAddress,
+          name: hiredAgent.name,
+          agentId: hiredAgent.agentId,
+          paymentTx: payment.txHash,
+          amountUsd: payment.amountUsd,
+          path: payment.path,
+          deliverableHash: rating?.deliverableHash,
+          ratingTx: rating?.txHash,
+          brief,
+        }),
+      });
+      const report = await res.json();
+      const html: string | undefined = report.certificateHtml;
+      const blob = new Blob([html ?? JSON.stringify(report, null, 2)], { type: html ? "text/html" : "application/json" });
+      const a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = `agentmarket-compliance-certificate-${hiredAgent.agentId}.${html ? "html" : "json"}`;
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } catch {
+      /* best-effort download */
+    }
+  };
 
   // ?autorun: kick off the full demo automatically (used for the backup recording)
   const runRef = useRef<() => void>();
@@ -197,23 +265,66 @@ export default function Home() {
     return () => timers.forEach(clearTimeout);
   }, [phase, say, sayLive, brief]);
 
-  // the hired agent's visible QA pass: page walkthrough -> real responsive sweep -> final look
+  // the hired agent's REAL QA pass — acts like a browser-using agent: /api/qa renders the
+  // deliverable in headless Chrome, screenshots desktop + mobile, and a VISION model inspects it
+  // and reports genuine, specific defects. Falls back to an in-browser render+measure if the
+  // headless/vision path is unavailable. Returns the (maybe overflow-patched) html + a qaNote of
+  // real findings the hired agent then revises against.
   const runInspection = useCallback(
-    async (style: Style, id: number) => {
+    async (style: Style, id: number, html: string): Promise<{ html: string; qaNote?: string }> => {
       setPhase("inspecting");
       const agentName = styleById(style).agentName;
-      void sayLive(agentName, style, "You are starting a QA walkthrough of the page you just built — checking nav, hero, hierarchy and spacing.", "Running my QA pass — walking the page: nav, hero, CTA hierarchy…", {});
-      setInspect({ step: "scan", label: "WALKTHROUGH · HIERARCHY & SPACING" });
-      await new Promise((r) => setTimeout(r, 6800));
-      if (id !== runId.current) return;
-      void sayLive(agentName, style, "You are now testing your build at mobile width (390px) — the responsive sweep.", "Responsive sweep — re-rendering at 390px…", {});
-      setInspect({ step: "mobile", label: "RESPONSIVE · 390PX VIEWPORT" });
-      await new Promise((r) => setTimeout(r, 4500));
-      if (id !== runId.current) return;
-      setInspect({ step: "final", label: "FINAL LOOK" });
-      void sayLive(agentName, style, "Your QA pass came back clean. Submit the work for the client's review.", "QA pass clean. Submitting for review.", {});
-      await new Promise((r) => setTimeout(r, 1800));
+      void sayLive(agentName, style, "You are opening the page you just built in a real browser to QA it — looking at desktop, then mobile.", "Opening the build in a browser to QA it — desktop, then mobile…", {});
+      setInspect({ step: "scan", label: "QA · RENDERING IN A REAL BROWSER" });
+
+      type Vision = { available: boolean; verdict?: "pass" | "issues"; summary?: string; findings?: { title: string; severity: string; viewport: string }[]; mobileScrollWidth?: number };
+      let vision: Vision = { available: false };
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(() => ctrl.abort(), 48000);
+        const res = await fetch("/api/qa", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ html }), signal: ctrl.signal });
+        clearTimeout(t);
+        if (res.ok) vision = await res.json();
+      } catch {
+        /* fall back to the in-browser measurement below */
+      }
+      if (id !== runId.current) return { html };
+      setInspect({ step: "mobile", label: "QA · INSPECTING DESKTOP + 390PX" });
+      await new Promise((r) => setTimeout(r, 900));
+      if (id !== runId.current) return { html };
+
+      let out = html;
+      let qaNote: string | undefined;
+
+      if (vision.available && vision.verdict) {
+        const overflow = (vision.mobileScrollWidth ?? 0) > 396;
+        if (overflow) out = applyResponsiveFix(html); // deterministic mobile-overflow fix on top of the agent's findings
+        if (vision.verdict === "pass") {
+          say("agent", agentName, `QA clean ✓ — I rendered it in a real browser at desktop and 390px. ${vision.summary || "No overflow, contrast, or layout issues."}`, style);
+        } else {
+          say("agent", agentName, `⚠ QA found issues — ${vision.summary || "the build needs work before it ships."}`, style);
+          (vision.findings || []).slice(0, 3).forEach((f) => say("agent", agentName, `   • [${f.viewport}] ${f.title}`, style));
+          const majors = (vision.findings || []).filter((f) => f.severity === "major").map((f) => f.title);
+          qaNote = `My QA pass (real browser, desktop + mobile) flagged these to fix before shipping: ${(majors.length ? majors : (vision.findings || []).map((f) => f.title)).slice(0, 4).join("; ") || vision.summary}. Address each specifically; keep everything else.`;
+        }
+      } else {
+        // fallback: lightweight in-browser render + measure (no vision)
+        const rep = await inspectDeliverable(html);
+        if (rep.passed) {
+          say("agent", agentName, `QA clean ✓ — rendered at 390px, no overflow (${rep.scrollWidthPx}px), nav/hero/footer all render.`, style);
+        } else {
+          out = applyResponsiveFix(html);
+          const re = await inspectDeliverable(out);
+          say("agent", agentName, re.passed ? `Caught and fixed a mobile overflow (now ${re.scrollWidthPx}px ≤ 390px).` : `Mobile overflow at 390px (${rep.scrollWidthPx}px) — flagging for a revision.`, style);
+          if (!re.passed) qaNote = `Mobile overflow at 390px (page ${rep.scrollWidthPx}px wide${rep.offender ? `, "${rep.offender}" bleeds past the viewport` : ""}). Make the layout responsive.`;
+        }
+      }
+      if (id !== runId.current) return { html: out, qaNote };
+
+      setInspect({ step: "final", label: qaNote ? "QA · ISSUES FOUND" : "QA · CLEAN" });
+      await new Promise((r) => setTimeout(r, 1200));
       setInspect(undefined);
+      return { html: out, qaNote };
     },
     [say, sayLive]
   );
@@ -294,11 +405,21 @@ export default function Home() {
       const included = styleById(agentStyle).includedRevisions;
       let html = firstHtml;
       let lastFix = ""; // the change requested in the previous round (so re-review confirms IT)
+      let qaRevised = false; // the hired agent fixes its OWN QA findings at most once
       try {
         let revisionsUsed = 0;
         for (let round = 1; round <= 3; round++) {
-          await runInspection(agentStyle, id);
+          const qa = await runInspection(agentStyle, id, html); // real (vision) QA; may patch overflow + flag findings
           if (id !== runId.current) return;
+          html = qa.html;
+          // hired agent revises its OWN build to fix what its QA caught — before sending to the client
+          if (qa.qaNote && !qaRevised) {
+            qaRevised = true;
+            await sayLive(agentName, agentStyle, "Your own QA caught real visual issues. You are revising your build to fix exactly those before submitting to the client.", "Fixing what my QA caught — revising now…", { sync: true });
+            if (id !== runId.current) return;
+            html = await runBuild(agentStyle, briefText, id, qa.qaNote);
+            if (id !== runId.current) return;
+          }
           setPhase("awaiting");
           const r = await consumeOrchestrate<{ approved: boolean; revisionNote?: string }>(
             await postOrchestrate({ stage: "review", brief: briefText, html, round, requestedFix: lastFix })
@@ -332,7 +453,7 @@ export default function Home() {
                 const fee: Payment = await feeRes.json();
                 if (id !== runId.current) return;
                 setEvents((prev) => [
-                  { label: `Revision fee · $0.01 USDC → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
+                  { label: `Revision fee · $0.01 ${fee.path === "ausdc-transfer" ? "aUSDC" : "USDC"} → agent (${fee.path})`, txHash: fee.txHash, explorerUrl: fee.explorerUrl, ts: Date.now() },
                   ...prev,
                 ]);
                 await sayLive(agentName, agentStyle, `The client just paid your $0.01 revision fee via ${fee.path}. Confirm and start revising.`, `Fee received (${fee.path}). Revising now…`, { sync: true });
@@ -373,12 +494,13 @@ export default function Home() {
         if (!res.ok) throw new Error("pay failed");
         const p: Payment = await res.json();
         if (id !== runId.current) return;
+        const asset = p.path === "ausdc-transfer" ? "aUSDC" : "USDC";
         setPayment(p);
         setEvents((prev) => [
-          { label: `Payment · $${p.amountUsd.toFixed(2)} USDC → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
+          { label: `Payment · $${p.amountUsd.toFixed(2)} ${asset} → agent (${p.path})`, txHash: p.txHash, explorerUrl: p.explorerUrl, ts: Date.now() },
           ...prev,
         ]);
-        await sayLive(agentName, agentStyle, `The client just paid you $0.01 USDC for the job via ${p.path}, settled on-chain. React briefly, in character.`, PERSONAS[agentStyle].paid(p.path), { sync: true });
+        await sayLive(agentName, agentStyle, `The client just paid you $${p.amountUsd.toFixed(2)} ${asset}${p.path === "ausdc-transfer" ? " (compliant A-Token)" : ""} for the job, settled on-chain. React briefly, in character.`, PERSONAS[agentStyle].paid(p.path), { sync: true });
       } catch {
         if (id !== runId.current) return;
         setPayment((prev) => (prev ? { ...prev, status: "failed" } : prev));
@@ -399,9 +521,9 @@ export default function Home() {
           body: JSON.stringify({ agentId: agent.agentId, style: agent.style, value: 490, deliverableHtml: deliverableRef.current }),
         });
         if (!res.ok) throw new Error("feedback failed");
-        const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number } } = await res.json();
+        const d: { txHash: string; explorerUrl: string; reputation: { count: number; score: number }; deliverableHash?: string } = await res.json();
         if (id !== runId.current) return;
-        setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore });
+        setRating({ txHash: d.txHash, explorerUrl: d.explorerUrl, previousScore, deliverableHash: d.deliverableHash });
         setCandidates((prev) => prev.map((a) => (a.agentId === agent.agentId ? { ...a, reputation: d.reputation } : a)));
         setEvents((prev) => [
           {
@@ -449,6 +571,7 @@ export default function Home() {
       );
       if (id !== runId.current) return;
       setCandidates(open.result.candidates);
+      mergeVerification(open.result.candidates); // C1: progressive, off the critical path
       setInferredStyle(open.result.inferredStyle);
       setReasoning(open.text);
       const style = open.result.inferredStyle;
@@ -494,11 +617,15 @@ export default function Home() {
       // ── stage "evaluate": pitch fit + per-style on-chain track records (with retry) ──
       setPhase("evaluating");
       say("orchestrator", "Hiring Agent", "All pitches in. Scoring brand fit and cross-checking on-chain track records…");
-      const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string }>(
+      const evald = await consumeOrchestrate<{ criteria: string; selectedAgentId: string; gatedOut?: string[] }>(
         await postOrchestrate({ stage: "evaluate", brief: briefText, inferredStyle: style, pitches: pitchStatuses })
       );
       if (id !== runId.current) return;
       setReasoning(evald.text);
+      // compliance gate payoff: surface any agent blocked from hire for lacking an A-Pass
+      if (evald.result.gatedOut && evald.result.gatedOut.length > 0) {
+        say("orchestrator", "Hiring Agent", `⛔ Compliance gate — ${evald.result.gatedOut.join(", ")} blocked from hire: no verified A-Pass. Only KYC-verified agents are eligible.`);
+      }
       const winner = open.result.candidates.find((a) => a.agentId === evald.result.selectedAgentId);
       const winnerStyle = winner?.style ?? style;
       // let the reasoning typewriter play, then the HIRED moment
@@ -506,7 +633,25 @@ export default function Home() {
       if (id !== runId.current) return;
       setHiredStyle(winnerStyle);
       if (winner) {
-        say("orchestrator", "Hiring Agent", `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`);
+        // when the gate forced a substitute (the inferred-style specialist was blocked), say so
+        const gatedSub = (evald.result.gatedOut?.length ?? 0) > 0 && winnerStyle !== style;
+        say(
+          "orchestrator",
+          "Hiring Agent",
+          gatedSub
+            ? `@${winner.name} — you're hired. The ${style} specialist wasn't A-Pass verified, so you're the strongest VERIFIED agent for the job. The full build is yours.`
+            : `@${winner.name} — you're hired. Best pitch, strongest proven ${winnerStyle} record. The full build is yours.`
+        );
+        const winnerVerification = candidates.find((c) => c.agentId === winner.agentId)?.verification;
+        if (winnerVerification && winnerVerification.status !== "unavailable") {
+          say(
+            "orchestrator",
+            "Hiring Agent",
+            winnerVerification.status === "verified"
+              ? "Counterparty A-Pass: ✓ verified"
+              : "Counterparty A-Pass: ✗ unverified — KYC pending"
+          );
+        }
         await sayLive(winner.name, winnerStyle, "You just won the job — the client hired you over the other three agents. Acknowledge and say you are starting the full build.", PERSONAS[winnerStyle].hireAck, { context: briefText, sync: true });
       }
       await new Promise((r) => setTimeout(r, 1200));
@@ -544,7 +689,7 @@ export default function Home() {
       }
       setPhase("done");
     }
-  }, [brief, candidates, runBuild, runPayment, runRating, say, sayLive]);
+  }, [brief, candidates, mergeVerification, runBuild, runPayment, runRating, say, sayLive]);
 
   // keep the latest run() reachable from the autorun effect
   useEffect(() => {
@@ -644,7 +789,7 @@ export default function Home() {
         {/* right: the proof rail */}
         <div className="flex flex-col gap-5">
           <div className="-mb-2.5 px-1 font-mono text-[11px] font-medium tracking-[0.18em] text-zinc-400">ON-CHAIN PROOF</div>
-          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} onDownload={phase === "done" || payment?.status === "settled" ? downloadDeliverable : undefined} />
+          <PaymentPanel payment={payment} awaitingAccept={phase === "awaiting"} onDownload={phase === "done" || payment?.status === "settled" ? downloadDeliverable : undefined} onDownloadReport={payment?.status === "settled" ? downloadComplianceReport : undefined} />
           {hiredAgent ? (
             <ReputationPanel agent={hiredAgent} previousScore={rating?.previousScore} txHash={rating?.txHash} explorerUrl={rating?.explorerUrl} />
           ) : null}

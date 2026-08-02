@@ -21,6 +21,7 @@ export const CHAIN_ID = 10143 as const;
 export const IDENTITY_REGISTRY = "0x8004A818BFB912233c491871b3d84c89A494BD9e" as Address;
 export const REPUTATION_REGISTRY = "0x8004B663056A597Dffe9eCcC1965A193B7388713" as Address;
 export const USDC = "0x534b2f3A21130d7a60830c2Df862319e593943A3" as Address; // 6 decimals
+export const AUSDC = "0xaC0893567D43C3E7e6e35a72803df05416C1f20D" as Address; // Cleanverse aUSDC — compliant A-Token, 6dp (C2)
 export const EXPLORER = "https://testnet.monadexplorer.com";
 
 export const explorerTx = (hash: string) => `${EXPLORER}/tx/${hash}`;
@@ -39,6 +40,10 @@ export const reputationAbi = parseAbi([
   // NO signature-auth param (current canonical form; the uint8-score+feedbackAuth form is deprecated)
   "function giveFeedback(uint256 agentId, int128 value, uint8 valueDecimals, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
   "function getSummary(uint256 agentId, address[] clientAddresses, string tag1, string tag2) view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
+  // Individual feedback reads (no log-scan; sidesteps the getLogs RPC cap). index is 1-based.
+  "function getClients(uint256 agentId) view returns (address[])",
+  "function getLastIndex(uint256 agentId, address client) view returns (uint64)",
+  "function readFeedback(uint256 agentId, address client, uint64 index) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bytes32 feedbackHash)",
   "event NewFeedback(uint256 indexed agentId, address indexed clientAddress, uint64 feedbackIndex, int128 value, uint8 valueDecimals, string indexed indexedTag1, string tag1, string tag2, string endpoint, string feedbackURI, bytes32 feedbackHash)",
 ]);
 

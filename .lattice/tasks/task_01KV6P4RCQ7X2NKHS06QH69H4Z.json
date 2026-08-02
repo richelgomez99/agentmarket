@@ -1,0 +1,57 @@
+{
+  "assigned_to": {
+    "agent_type": "orchestrated",
+    "base_name": "cln-planner",
+    "framework": "claude-code",
+    "model": "claude-opus-4-8",
+    "name": "cln-planner-1",
+    "serial": 1,
+    "session": "sess_01KV6Q3FTDSB0J8PBFRS9ASK13"
+  },
+  "branch_links": [],
+  "comment_count": 3,
+  "complexity": "medium",
+  "created_at": "2026-06-15T22:23:57Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Normalize /verify_apass into AgentVerification (FR-001/002). getWalletVerification(address) wraps cvVerifyApass(address,AUSDC_MONAD,CV_CHAIN); verifyAddresses(addresses[]) DEDUPES by address. Centralize the verdict mapper (the one place OQ-1 changes): outer code==0000 + inner success => verified; inner data.code non-success (2 / apass not exist) => unverified + onboardUrl=data.magickLink; throw/transport error => status=unavailable. Stamp checkedAt. Unit-test mapper vs observed unverified payload + synthesized verified one. Depends on CLN-1.",
+  "done_at": "2026-06-15T22:51:06Z",
+  "evidence_refs": [
+    {
+      "id": "art_01KV6QB6HPE7JBT3KM51BVWJTM",
+      "role": "plan-review",
+      "source_type": "artifact"
+    },
+    {
+      "id": "art_01KV6QGV4A4QS5JXKWWS7T1BJ2",
+      "role": "review",
+      "source_type": "artifact"
+    }
+  ],
+  "id": "task_01KV6P4RCQ7X2NKHS06QH69H4Z",
+  "last_event_id": "ev_01KV6RA97S72YJZ3YA1W2Z8VQX",
+  "last_status_changed_at": "2026-06-15T22:51:06Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [
+    {
+      "created_at": "2026-06-15T22:23:57Z",
+      "created_by": "agent:claude-opus-4-architect",
+      "note": null,
+      "target_task_id": "task_01KV6P4R9F5MWV1R7VQ5YQ7TQT",
+      "type": "depends_on"
+    }
+  ],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-2",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "c1"
+  ],
+  "title": "Cleanverse verification service (verifyAddresses)",
+  "type": "task",
+  "updated_at": "2026-06-15T23:01:55Z",
+  "urgency": null
+}

@@ -1,0 +1,36 @@
+{
+  "assigned_to": "agent:claude-opus-4-architect",
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "medium",
+  "created_at": "2026-06-16T01:53:07Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Replace the always-clean runInspection verdict with real checks on the deliverable HTML that CAN fail: viewport/overflow at 390px, missing nav/hero, external/broken refs, oversized media. On fail, surface the issue + auto-fix (revision) then re-check. Makes the hired-agent QA genuinely evaluative like the hiring-agent review.",
+  "done_at": "2026-06-16T13:05:07Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV88J6XQETF6JQQN9SXVHSB5",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV723QZC1CA3RJPV63CBRX3Q",
+  "last_event_id": "ev_01KV88J716WV58V9GPCQ8373YD",
+  "last_status_changed_at": "2026-06-16T13:05:07Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-11",
+  "status": "done",
+  "tags": [
+    "qa",
+    "enhancement"
+  ],
+  "title": "Make the hired-agent QA pass real",
+  "type": "task",
+  "updated_at": "2026-06-16T13:05:07Z",
+  "urgency": null
+}

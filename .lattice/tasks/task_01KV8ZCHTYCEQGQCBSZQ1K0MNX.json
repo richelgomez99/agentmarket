@@ -1,0 +1,36 @@
+{
+  "assigned_to": null,
+  "branch_links": [],
+  "comment_count": 1,
+  "complexity": "medium",
+  "created_at": "2026-06-16T19:43:58Z",
+  "created_by": "agent:claude-opus-4-architect",
+  "custom_fields": {},
+  "description": "Operator screenshot: 'VIEW A-PASS ON MONAD' linked the A-Pass registry CONTRACT which shows empty (0 txns) on the explorer \u2014 looks fake. Real proof: A-Pass is an ERC721 the verified wallet HOLDS (balanceOf=1) and query_apass returns a rich record (cvRecordId 397, tier 20, status active, KYC hash, expiry). Fix: verify API returns the A-Pass record for verified wallets; modal shows it (record #, tier, KYC-bound, active, expiry) and links the VERIFIED WALLET address (holds the NFT + real activity), not the contract.",
+  "done_at": "2026-06-16T19:48:33Z",
+  "evidence_refs": [
+    {
+      "id": "ev_01KV8ZMXKJ9GP06DVSNGZ8ZTBG",
+      "role": "review",
+      "source_type": "comment"
+    }
+  ],
+  "id": "task_01KV8ZCHTYCEQGQCBSZQ1K0MNX",
+  "last_event_id": "ev_01KV8ZMXQ7F4QQH5KK3VB3PKF0",
+  "last_status_changed_at": "2026-06-16T19:48:33Z",
+  "linked_files": [],
+  "priority": "medium",
+  "relationships_out": [],
+  "reopened_count": 0,
+  "schema_version": 1,
+  "short_id": "AGNTM-13",
+  "status": "done",
+  "tags": [
+    "cleanverse",
+    "proof"
+  ],
+  "title": "A-Pass proof \u2014 show query_apass record + link verified wallet",
+  "type": "bug",
+  "updated_at": "2026-06-16T19:48:33Z",
+  "urgency": null
+}
